@@ -8,7 +8,6 @@ import {
   CreditCard,
   HandCoins,
   PackageSearch,
-  ReceiptText,
   RotateCcw,
   ShoppingBag,
   ShoppingCart,
@@ -27,13 +26,13 @@ import { demoDashboard } from '@/lib/demo/dashboard';
 
 const quickActions = [
   ['New Sale', '/sales/new', ShoppingCart],
+  ['POS', '/sales/pos', CreditCard],
   ['New Purchase', '/purchases/new', Boxes],
-  ['Product List', '/products', PackageSearch],
+  ['Product', '/products', PackageSearch],
   ['Customer', '/customers', Users],
   ['Supplier', '/suppliers', HandCoins],
-  ['Sales List', '/sales', ReceiptText],
-  ['Purchase List', '/purchases', ClipboardList],
   ['Stock List', '/reports/stock-list', ShoppingBag],
+  ['Reports', '/reports/stock-list', ClipboardList],
 ] as const;
 const statIcons = [ShoppingCart, Boxes, ArrowUpRight, Banknote];
 
@@ -42,7 +41,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description="A clear view of today’s business performance."
+        description="Sales, stock movement and payments that need your attention today."
         actions={
           <>
             <DateRangeFilter />
@@ -58,14 +57,14 @@ export default function DashboardPage() {
           <span className="text-xs text-slate-400">Asia/Dhaka · BDT</span>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-          {quickActions.map(([label, href, Icon]) => (
+          {quickActions.map(([label, href, Icon], index) => (
             <Link
-              className="group flex min-h-20 flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+              className={index < 2 ? 'group flex min-h-20 flex-col justify-between rounded-xl border border-emerald-700 bg-emerald-700 p-3 text-white transition hover:bg-emerald-800' : 'group flex min-h-20 flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 transition hover:border-emerald-300 hover:shadow-sm'}
               href={href}
               key={label}
             >
-              <Icon className="text-slate-400 transition group-hover:text-emerald-700" size={19} />
-              <span className="text-xs font-semibold text-slate-700">{label}</span>
+              <Icon className={index < 2 ? 'text-emerald-100' : 'text-slate-400 transition group-hover:text-emerald-700'} size={19} />
+              <span className={index < 2 ? 'text-xs font-bold text-white' : 'text-xs font-semibold text-slate-700'}>{label}</span>
             </Link>
           ))}
         </div>
@@ -119,7 +118,9 @@ export default function DashboardPage() {
           <TrendChart />
         </DashboardChartCard>
       </section>
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+      <section>
+        <div className="mb-3 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-amber-700">Needs attention</p><h2 className="mt-1 text-lg font-bold text-slate-950">Operational follow-up</h2></div><span className="text-xs text-slate-400">Demo data</span></div>
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {demoDashboard.insights.map((item, index) => {
             const Icon = [CreditCard, ArrowDownToLine, PackageSearch, RotateCcw][index]!;
@@ -151,6 +152,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </section>
+        </div>
       </section>
     </div>
   );

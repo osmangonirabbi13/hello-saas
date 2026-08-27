@@ -16,6 +16,7 @@ export function PosCheckout({
   const [cart, setCart] = useState<Record<string, number>>({});
   const [paid, setPaid] = useState(0);
   const [message, setMessage] = useState('');
+  const [selectedSerials, setSelectedSerials] = useState<Record<string, string[]>>({});
   const filtered = useMemo(
     () =>
       products.filter((product) =>
@@ -31,9 +32,28 @@ export function PosCheckout({
     setCart((current) => ({ ...current, [id]: Math.max(0, (current[id] ?? 0) + delta) }));
   const scanner = useBarcodeScanner({
     onScan: (barcode) => {
+      const serialProduct = products.find((item) => item.serials.some((serial) => serial === barcode));
+      if (serialProduct) {
+        const selected = selectedSerials[serialProduct.id] ?? [];
+        if (selected.includes(barcode))
+          return setMessage('This Serial / IMEI is already selected.');
+        if (selected.length >= serialProduct.available)
+          return setMessage('No more sellable serial stock is available.');
+        setSelectedSerials((current) => ({
+          ...current,
+          [serialProduct.id]: [...(current[serialProduct.id] ?? []), barcode],
+        }));
+        setCart((current) => ({
+          ...current,
+          [serialProduct.id]: (current[serialProduct.id] ?? 0) + 1,
+        }));
+        setQuery('');
+        return setMessage(`${serialProduct.name}: serial attached and added.`);
+      }
       const product = products.find((item) => item.barcode === barcode);
-      if (!product) return setMessage(`No active product found for barcode ${barcode}.`);
+      if (!product) return setMessage(`Product or sellable Serial / IMEI not found: ${barcode}.`);
       if (product.available <= 0) return setMessage(`${product.name} is out of stock.`);
+      if (product.serialized) return setMessage(`${product.name}: scan an IN_STOCK Serial / IMEI.`);
       change(product.id, 1);
       setQuery('');
       setMessage(`${product.name} added to cart.`);
@@ -45,7 +65,13 @@ export function PosCheckout({
         title="Fast POS"
         description="A touch-friendly checkout over the same authenticated SaleService."
         actions={
-          <Button variant="secondary" onClick={() => setCart({})}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setCart({});
+              setSelectedSerials({});
+            }}
+          >
             Clear cart
           </Button>
         }
@@ -72,7 +98,11 @@ export function PosCheckout({
                 className="rounded-xl border p-4 text-left hover:border-emerald-500 hover:bg-emerald-50"
                 key={product.id}
                 type="button"
-                onClick={() => change(product.id, 1)}
+                onClick={() =>
+                  product.serialized
+                    ? setMessage(`${product.name}: scan or select a Serial / IMEI.`)
+                    : change(product.id, 1)
+                }
               >
                 <p className="font-semibold">{product.name}</p>
                 <p className="mt-1 text-xs text-slate-500">
@@ -103,7 +133,9 @@ export function PosCheckout({
                     <p className="font-medium">{product.name}</p>
                     <p className="text-xs text-slate-500">
                       {product.sku}
-                      {product.serialized ? ' · Serial selection required' : ''}
+                      {product.serialized
+                        ? ` · ${selectedSerials[product.id]?.length ?? 0} serial selected`
+                        : ''}
                     </p>
                   </div>
                   <button
@@ -127,6 +159,7 @@ export function PosCheckout({
                     <Button
                       className="size-8 p-0"
                       variant="secondary"
+                      disabled={product.serialized}
                       onClick={() => change(product.id, 1)}
                     >
                       <Plus size={14} />

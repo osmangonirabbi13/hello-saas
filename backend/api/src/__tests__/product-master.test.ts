@@ -76,4 +76,23 @@ describe('ProductService tenant boundaries', () => {
       code: 'DUPLICATE_PRODUCT_IDENTIFIER',
     });
   });
+  it('uses the server tenant for exact barcode lookup and rejects inactive products', async () => {
+    const findByBarcode = vi.fn().mockResolvedValue({ id: 'product-a', isActive: true });
+    await expect(
+      new ProductService(repository({ findByBarcode })).lookupBarcode('business-a', ' 89411001 '),
+    ).resolves.toMatchObject({ id: 'product-a' });
+    expect(findByBarcode).toHaveBeenCalledWith('business-a', '89411001');
+    await expect(
+      new ProductService(
+        repository({
+          findByBarcode: vi.fn().mockResolvedValue({ id: 'product-a', isActive: false }),
+        }),
+      ).lookupBarcode('business-a', '89411001'),
+    ).rejects.toMatchObject({ code: 'PRODUCT_INACTIVE' });
+  });
+  it('returns not-found semantics for an unknown or cross-tenant barcode', async () => {
+    await expect(
+      new ProductService(repository()).lookupBarcode('business-a', 'tenant-b-code'),
+    ).rejects.toMatchObject({ statusCode: 404, code: 'BARCODE_NOT_FOUND' });
+  });
 });

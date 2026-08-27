@@ -20,12 +20,10 @@ function repository(
   overrides: Partial<InventoryRepositoryContract> = {},
 ): InventoryRepositoryContract {
   return {
-    context: vi
-      .fn()
-      .mockResolvedValue({
-        product: { id: 'product-a', allowNegativeStock: false, trackStock: true },
-        warehouse: { id: 'warehouse-a' },
-      }),
+    context: vi.fn().mockResolvedValue({
+      product: { id: 'product-a', allowNegativeStock: false, trackStock: true },
+      warehouse: { id: 'warehouse-a' },
+    }),
     balance: vi.fn().mockResolvedValue(5),
     applyAtomic: vi.fn().mockResolvedValue({ movement: {}, quantity: 3 }),
     applyWithTransaction: vi.fn().mockResolvedValue({ movement: {}, quantity: 3 }),
@@ -91,12 +89,10 @@ describe('InventoryService boundaries', () => {
   });
   it('allows deliberate negative stock when product policy is true', async () => {
     const applyAtomic = vi.fn().mockResolvedValue({ movement: {}, quantity: -1 });
-    const context = vi
-      .fn()
-      .mockResolvedValue({
-        product: { id: 'product-a', allowNegativeStock: true, trackStock: true },
-        warehouse: { id: 'warehouse-a' },
-      });
+    const context = vi.fn().mockResolvedValue({
+      product: { id: 'product-a', allowNegativeStock: true, trackStock: true },
+      warehouse: { id: 'warehouse-a' },
+    });
     await expect(
       new InventoryService(
         repository({ context, balance: vi.fn().mockResolvedValue(1), applyAtomic }),
@@ -121,5 +117,24 @@ describe('InventoryService boundaries', () => {
     await expect(
       new InventoryService(repository()).findSerial('business-a', 'serial-from-b'),
     ).rejects.toMatchObject({ statusCode: 404, code: 'SERIAL_NOT_FOUND' });
+  });
+  it.each(['SOLD', 'DAMAGED', 'IN_RMA'])('rejects an unavailable %s serial', async (status) => {
+    const service = new InventoryService(
+      repository({ findSerialByNumber: vi.fn().mockResolvedValue({ id: 'serial-a', status }) }),
+    );
+    await expect(service.lookupSerial('business-a', 'IMEI-1')).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'SERIAL_UNAVAILABLE',
+    });
+  });
+  it('returns only an IN_STOCK serial from the active tenant', async () => {
+    const findSerialByNumber = vi.fn().mockResolvedValue({ id: 'serial-a', status: 'IN_STOCK' });
+    await expect(
+      new InventoryService(repository({ findSerialByNumber })).lookupSerial(
+        'business-a',
+        ' IMEI-1 ',
+      ),
+    ).resolves.toMatchObject({ id: 'serial-a' });
+    expect(findSerialByNumber).toHaveBeenCalledWith('business-a', 'IMEI-1');
   });
 });

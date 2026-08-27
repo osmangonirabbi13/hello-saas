@@ -1,10 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, ScanBarcode, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, FormSection, PageHeader, Sheet } from '@/components/ui/primitives';
 import type { SaleCustomer, SaleMode, SaleProduct, SaleSummary } from '@/lib/api/sales';
+import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import { lookupProductBarcode, lookupSellableSerial } from '@/lib/api/scanner-lookups';
+import { appendUniqueSerial, applyProductScan } from '@/lib/transaction-scanner';
 
 type Line = {
   productId: string;
@@ -40,11 +43,14 @@ export function SaleForm({
   sale?: SaleSummary;
 }) {
   const [message, setMessage] = useState('');
+  const scannerInput = useRef<HTMLInputElement>(null);
   const {
     register,
     control,
     watch,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
@@ -76,6 +82,78 @@ export function SaleForm({
   const subtotal = values.lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const grand = Math.max(0, subtotal - values.discount + values.additionalCost + values.tax);
   const due = Math.max(0, grand - values.paid);
+  const addProduct = (product: SaleProduct) => {
+    const current = getValues('lines');
+    const scan = applyProductScan(current, product);
+    if (scan.lineIndex === current.length) {
+      append({
+        productId: product.id,
+        quantity: 1,
+        unitPrice: Number(product.salePrice),
+        discount: 0,
+        tax: 0,
+        serials: '',
+      });
+    } else if (scan.outcome === 'incremented') {
+      setValue(`lines.${scan.lineIndex}.quantity`, scan.lines[scan.lineIndex]!.quantity, {
+        shouldDirty: true,
+      });
+    }
+    setMessage(
+      scan.outcome === 'serial-required'
+        ? `${product.name}: select or scan an IN_STOCK Serial / IMEI.`
+        : scan.outcome === 'incremented'
+          ? `${product.name} quantity increased.`
+          : `${product.name} added.`,
+    );
+  };
+  const scanner = useBarcodeScanner({
+    onScan: (value) => {
+      void (async () => {
+        try {
+          const localProduct = products.find((item) => item.barcode === value);
+          addProduct(localProduct ?? (await lookupProductBarcode<SaleProduct>(value)));
+        } catch {
+          try {
+          const localOwner = products.find((item) => item.serials.some((serial) => serial === value));
+            const resolved = localOwner
+              ? { serialNumber: value, product: localOwner }
+              : await lookupSellableSerial<{ serialNumber: string; product: SaleProduct }>(value);
+            const current = getValues('lines');
+          const index = current.findIndex((line) => line.productId === resolved.product.id);
+            if (index === -1) {
+              append({
+                productId: resolved.product.id,
+                quantity: 1,
+                unitPrice: Number(resolved.product.salePrice),
+                discount: 0,
+                tax: 0,
+                serials: resolved.serialNumber,
+              });
+              setMessage(`${resolved.product.name}: serial attached.`);
+            } else {
+              const next = appendUniqueSerial(current[index]!.serials, resolved.serialNumber);
+              if (!next.added) setMessage('This Serial / IMEI is already selected.');
+              else {
+                setValue(`lines.${index}.serials`, next.value, { shouldDirty: true });
+                setValue(`lines.${index}.quantity`, next.value.split('\n').length, {
+                  shouldDirty: true,
+                });
+                setMessage(`${resolved.product.name}: serial attached.`);
+              }
+            }
+          } catch (reason) {
+            setMessage(
+              reason instanceof Error ? reason.message : 'Product or sellable serial not found.',
+            );
+          }
+        } finally {
+          if (scannerInput.current) scannerInput.current.value = '';
+          scannerInput.current?.focus();
+        }
+      })();
+    },
+  });
   const save = handleSubmit(() =>
     setMessage('Draft validated. The authenticated API recalculates and persists all totals.'),
   );
@@ -161,6 +239,21 @@ export function SaleForm({
         title="Products"
         description="Searchable by product name, SKU, or barcode; available stock is warehouse-specific."
       >
+        <label className="mb-4 block max-w-xl text-sm font-semibold text-slate-700">
+          Scan product barcode or Serial / IMEI
+          <span className="relative mt-1.5 block">
+            <ScanBarcode
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700"
+              size={18}
+            />
+            <input
+              ref={scannerInput}
+              className="h-11 w-full rounded-lg border border-slate-300 pl-10 pr-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Barcode or IMEI + Enter"
+              onKeyDown={scanner.onKeyDown}
+            />
+          </span>
+        </label>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px] text-sm">
             <thead>

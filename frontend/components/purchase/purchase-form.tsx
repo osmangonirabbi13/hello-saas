@@ -1,10 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, Save, ScanBarcode, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, FormSection, PageHeader, Sheet } from '@/components/ui/primitives';
 import type { PurchaseProduct, PurchaseSummary } from '@/lib/api/purchases';
+import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import { lookupProductBarcode } from '@/lib/api/scanner-lookups';
+import { applyProductScan } from '@/lib/transaction-scanner';
 type Line = {
   productId: string;
   quantity: number;
@@ -35,11 +38,14 @@ export function PurchaseForm({
   purchase?: PurchaseSummary;
 }) {
   const [message, setMessage] = useState('');
+  const scannerInput = useRef<HTMLInputElement>(null);
   const {
     register,
     control,
     watch,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
@@ -72,6 +78,45 @@ export function PurchaseForm({
   const subtotal = values.lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const grand = Math.max(0, subtotal - values.discount + values.additionalCost + values.tax);
   const due = Math.max(0, grand - values.paid);
+  const scanner = useBarcodeScanner({
+    onScan: (barcode) => {
+      void (async () => {
+        try {
+          const product =
+            products.find((item) => item.barcode === barcode) ??
+            (await lookupProductBarcode<PurchaseProduct>(barcode));
+          const current = getValues('lines');
+          const scan = applyProductScan(current, product);
+          if (scan.lineIndex === current.length) {
+            append({
+              productId: product.id,
+              quantity: 1,
+              unitCost: Number(product.purchasePrice),
+              discount: 0,
+              tax: 0,
+              serials: '',
+            });
+          } else if (scan.outcome === 'incremented') {
+            setValue(`lines.${scan.lineIndex}.quantity`, scan.lines[scan.lineIndex]!.quantity, {
+              shouldDirty: true,
+            });
+          }
+          setMessage(
+            scan.outcome === 'serial-required'
+              ? `${product.name}: scan or enter the Serial / IMEI for receiving.`
+              : scan.outcome === 'incremented'
+                ? `${product.name} quantity increased.`
+                : `${product.name} added.`,
+          );
+        } catch (reason) {
+          setMessage(reason instanceof Error ? reason.message : 'Product not found.');
+        } finally {
+          if (scannerInput.current) scannerInput.current.value = '';
+          scannerInput.current?.focus();
+        }
+      })();
+    },
+  });
   const validate = handleSubmit(() => {
     setMessage(
       'Validated in the frontend adapter. The API remains authoritative for persistence and totals.',
@@ -146,6 +191,21 @@ export function PurchaseForm({
         </div>
       </FormSection>
       <FormSection title="Products" description="Search by product name, SKU, or barcode.">
+        <label className="mb-4 block max-w-xl text-sm font-semibold text-slate-700">
+          Scan or enter product barcode
+          <span className="relative mt-1.5 block">
+            <ScanBarcode
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700"
+              size={18}
+            />
+            <input
+              ref={scannerInput}
+              className="h-11 w-full rounded-lg border border-slate-300 pl-10 pr-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Barcode + Enter"
+              onKeyDown={scanner.onKeyDown}
+            />
+          </span>
+        </label>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1050px] text-sm">
             <thead>

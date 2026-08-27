@@ -104,14 +104,26 @@ export default function RegisterPage() {
                 {label}
                 <input
                   required
-                  minLength={name === 'password' ? 10 : 2}
+                  minLength={name === 'password' ? 12 : 2}
                   name={name}
                   type={type}
+                  autoComplete={
+                    name === 'displayName'
+                      ? 'name'
+                      : name === 'email'
+                        ? 'email'
+                        : name === 'password'
+                          ? 'new-password'
+                          : 'organization'
+                  }
                   className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 px-3 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                 />
               </label>
             ))}
             <Button busy={busy} />
+            <p className="text-center text-xs text-slate-500">
+              No credit card required. Trial dates and status are created securely by the server.
+            </p>
           </form>
           <p className="mt-6 text-center text-sm text-slate-600">
             Already registered?{' '}
