@@ -1,0 +1,1 @@
+import { InventoryPage } from '@/components/inventory/inventory-page'; import { listLowStock } from '@/lib/api/inventory'; export default async function Page() { return <InventoryPage title="Low Stock Products" description="Active tracked products at or below their reorder level." rows={await listLowStock()} compact empty="All products are sufficiently stocked." />; }

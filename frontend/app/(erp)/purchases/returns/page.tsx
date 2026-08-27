@@ -1,0 +1,1 @@
+import{EmptyState,PageHeader}from'@/components/ui/primitives';export default function Page(){return <div className="space-y-5"><PageHeader title="Purchase Return List" description="Reserved for the future audited Purchase Return workflow."/><EmptyState title="Purchase Returns are not enabled" description="No return transaction logic has been implemented in this module."/></div>}

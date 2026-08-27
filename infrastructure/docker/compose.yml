@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: hello_shop
+      POSTGRES_USER: hello_shop
+      POSTGRES_PASSWORD: hello_shop
+    ports: ['5432:5432']
+    volumes: [hello_shop_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hello_shop -d hello_shop']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports: ['6379:6379']
+    volumes: [hello_shop_redis:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  hello_shop_postgres:
+  hello_shop_redis:

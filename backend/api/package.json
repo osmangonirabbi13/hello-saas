@@ -1,0 +1,43 @@
+{
+  "name": "@hello-shop/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:integration": "cross-env NODE_ENV=test RUN_DATABASE_INTEGRATION=true vitest run src/__tests__/database.integration.test.ts"
+  },
+  "dependencies": {
+    "@hello-shop/config": "workspace:*",
+    "@hello-shop/database": "workspace:*",
+    "@hello-shop/types": "workspace:*",
+    "@hello-shop/validation": "workspace:*",
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.1.0",
+    "jose": "^6.1.0",
+    "pino": "^9.9.0",
+    "pino-http": "^10.5.0",
+    "redis": "^5.8.2",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/supertest": "^6.0.3",
+    "cross-env": "^10.0.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

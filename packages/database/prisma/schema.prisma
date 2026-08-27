@@ -1,0 +1,616 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum WarrantyUnit {
+  DAYS
+  MONTHS
+  YEARS
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+  DEALER
+  CORPORATE
+  OTHER
+}
+
+enum StockMovementType {
+  OPENING_STOCK
+  PURCHASE
+  PURCHASE_RETURN
+  SALE
+  SALE_RETURN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  DAMAGE
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum StockAdjustmentReason {
+  OPENING_BALANCE
+  PHYSICAL_COUNT
+  DAMAGE_CORRECTION
+  LOST
+  FOUND
+  DATA_CORRECTION
+  OTHER
+}
+
+enum SerialStatus {
+  IN_STOCK
+  RESERVED
+  SOLD
+  RETURNED
+  DAMAGED
+  IN_RMA
+  SENT_TO_SUPPLIER
+  RECEIVED_FROM_SUPPLIER
+  DELIVERED_TO_CUSTOMER
+  SCRAPPED
+}
+
+enum PurchaseStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  displayName        String
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  memberships        BusinessMembership[]
+  sessions           LoginSession[]
+  auditLogs          AuditLog[]           @relation("AuditActor")
+  categories         Category[]           @relation("CategoryCreator")
+  subCategories      SubCategory[]        @relation("SubCategoryCreator")
+  brands             Brand[]              @relation("BrandCreator")
+  units              Unit[]               @relation("UnitCreator")
+  products           Product[]            @relation("ProductCreator")
+  customers          Customer[]           @relation("CustomerCreator")
+  suppliers          Supplier[]           @relation("SupplierCreator")
+  warehouses         Warehouse[]          @relation("WarehouseCreator")
+  stockMovements     StockMovement[]      @relation("StockMovementCreator")
+  stockAdjustments   StockAdjustment[]    @relation("StockAdjustmentCreator")
+  purchasesCreated   Purchase[]           @relation("PurchaseCreator")
+  purchasesPosted    Purchase[]           @relation("PurchasePoster")
+  purchasesCancelled Purchase[]           @relation("PurchaseCanceller")
+}
+
+model Business {
+  id               String               @id @default(cuid())
+  name             String
+  slug             String               @unique
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  memberships      BusinessMembership[]
+  roles            Role[]
+  sessions         LoginSession[]
+  auditLogs        AuditLog[]
+  categories       Category[]
+  subCategories    SubCategory[]
+  brands           Brand[]
+  units            Unit[]
+  products         Product[]
+  customers        Customer[]
+  suppliers        Supplier[]
+  sequences        BusinessSequence[]
+  warehouses       Warehouse[]
+  stockMovements   StockMovement[]
+  stockBalances    StockBalance[]
+  stockAdjustments StockAdjustment[]
+  serialItems      SerialItem[]
+  purchases        Purchase[]
+
+  @@index([createdAt])
+}
+
+model Category {
+  id            String        @id @default(cuid())
+  businessId    String
+  name          String
+  slug          String
+  description   String?
+  isActive      Boolean       @default(true)
+  createdById   String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy     User          @relation("CategoryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  subCategories SubCategory[]
+  products      Product[]
+
+  @@unique([businessId, slug])
+  @@index([businessId, isActive])
+}
+
+model SubCategory {
+  id          String    @id @default(cuid())
+  businessId  String
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy   User      @relation("SubCategoryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  products    Product[]
+
+  @@unique([businessId, categoryId, slug])
+  @@index([businessId, isActive])
+  @@index([businessId, categoryId])
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  businessId  String
+  name        String
+  slug        String
+  description String?
+  logoUrl     String?
+  isActive    Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy   User      @relation("BrandCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  products    Product[]
+
+  @@unique([businessId, slug])
+  @@index([businessId, isActive])
+}
+
+model Unit {
+  id             String    @id @default(cuid())
+  businessId     String
+  name           String
+  shortName      String
+  decimalAllowed Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User      @relation("UnitCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  products       Product[]
+
+  @@unique([businessId, name])
+  @@unique([businessId, shortName])
+  @@index([businessId, isActive])
+}
+
+model Product {
+  id                 String                @id @default(cuid())
+  businessId         String
+  name               String
+  slug               String
+  sku                String
+  barcode            String?
+  categoryId         String
+  subCategoryId      String?
+  brandId            String?
+  unitId             String
+  description        String?
+  purchasePrice      Decimal               @db.Decimal(18, 2)
+  salePrice          Decimal               @db.Decimal(18, 2)
+  dealerPrice        Decimal?              @db.Decimal(18, 2)
+  minimumSalePrice   Decimal?              @db.Decimal(18, 2)
+  trackStock         Boolean               @default(true)
+  serialized         Boolean               @default(false)
+  reorderLevel       Decimal               @default(0) @db.Decimal(18, 3)
+  allowNegativeStock Boolean               @default(false)
+  warrantyEnabled    Boolean               @default(false)
+  warrantyDuration   Int?
+  warrantyUnit       WarrantyUnit?
+  primaryImageUrl    String?
+  isActive           Boolean               @default(true)
+  createdById        String
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  business           Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  category           Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory        SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
+  brand              Brand?                @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  unit               Unit                  @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdBy          User                  @relation("ProductCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  stockMovements     StockMovement[]
+  stockBalances      StockBalance[]
+  adjustmentLines    StockAdjustmentLine[]
+  serialItems        SerialItem[]
+  purchaseLines      PurchaseLine[]
+
+  @@unique([businessId, sku])
+  @@unique([businessId, barcode])
+  @@unique([businessId, slug])
+  @@index([businessId, isActive])
+  @@index([businessId, categoryId])
+  @@index([businessId, brandId])
+}
+
+model Warehouse {
+  id          String            @id @default(cuid())
+  businessId  String
+  name        String
+  code        String
+  description String?
+  address     String?
+  isDefault   Boolean           @default(false)
+  isActive    Boolean           @default(true)
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  business    Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy   User              @relation("WarehouseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  movements   StockMovement[]
+  balances    StockBalance[]
+  adjustments StockAdjustment[]
+  serialItems SerialItem[]
+  purchases   Purchase[]
+
+  @@unique([businessId, code])
+  @@index([businessId, isActive])
+  @@index([businessId, isDefault])
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  businessId    String
+  warehouseId   String
+  productId     String
+  type          StockMovementType
+  quantity      Decimal           @db.Decimal(18, 3)
+  referenceType String?
+  referenceId   String?
+  unitCost      Decimal?          @db.Decimal(18, 2)
+  note          String?
+  occurredAt    DateTime          @default(now())
+  createdById   String
+  createdAt     DateTime          @default(now())
+  business      Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy     User              @relation("StockMovementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([businessId, productId])
+  @@index([businessId, warehouseId])
+  @@index([businessId, productId, warehouseId])
+  @@index([businessId, occurredAt])
+  @@index([referenceType, referenceId])
+}
+
+model StockBalance {
+  id          String    @id @default(cuid())
+  businessId  String
+  warehouseId String
+  productId   String
+  quantity    Decimal   @default(0) @db.Decimal(18, 3)
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, warehouseId, productId])
+  @@index([businessId, productId])
+  @@index([businessId, warehouseId])
+}
+
+model StockAdjustment {
+  id          String                @id @default(cuid())
+  businessId  String
+  warehouseId String
+  reason      StockAdjustmentReason
+  note        String?
+  createdById String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  business    Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse   Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy   User                  @relation("StockAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines       StockAdjustmentLine[]
+
+  @@index([businessId, createdAt])
+  @@index([businessId, warehouseId])
+}
+
+model StockAdjustmentLine {
+  id           String            @id @default(cuid())
+  adjustmentId String
+  productId    String
+  direction    StockMovementType
+  quantity     Decimal           @db.Decimal(18, 3)
+  unitCost     Decimal?          @db.Decimal(18, 2)
+  adjustment   StockAdjustment   @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([adjustmentId])
+  @@index([productId])
+}
+
+model SerialItem {
+  id            String       @id @default(cuid())
+  businessId    String
+  warehouseId   String
+  productId     String
+  serialNumber  String
+  status        SerialStatus @default(IN_STOCK)
+  purchaseId    String?
+  saleId        String?
+  customerId    String?
+  supplierId    String?
+  warrantyStart DateTime?
+  warrantyEnd   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  purchase      Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, serialNumber])
+  @@index([businessId, productId])
+  @@index([businessId, warehouseId])
+  @@index([businessId, status])
+}
+
+model Purchase {
+  id                    String         @id @default(cuid())
+  businessId            String
+  purchaseNumber        String
+  supplierId            String
+  warehouseId           String
+  supplierInvoiceNumber String?
+  reference             String?
+  purchaseDate          DateTime
+  dueDate               DateTime?
+  subtotal              Decimal        @db.Decimal(18, 2)
+  discountAmount        Decimal        @default(0) @db.Decimal(18, 2)
+  additionalCost        Decimal        @default(0) @db.Decimal(18, 2)
+  taxAmount             Decimal        @default(0) @db.Decimal(18, 2)
+  grandTotal            Decimal        @db.Decimal(18, 2)
+  paidAmount            Decimal        @default(0) @db.Decimal(18, 2)
+  dueAmount             Decimal        @db.Decimal(18, 2)
+  note                  String?
+  status                PurchaseStatus @default(DRAFT)
+  createdById           String
+  postedById            String?
+  postedAt              DateTime?
+  cancelledById         String?
+  cancelledAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  business              Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  supplier              Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse             Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy             User           @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy              User?          @relation("PurchasePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy           User?          @relation("PurchaseCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  lines                 PurchaseLine[]
+  serialItems           SerialItem[]
+
+  @@unique([businessId, purchaseNumber])
+  @@index([businessId, status])
+  @@index([businessId, supplierId])
+  @@index([businessId, warehouseId])
+  @@index([businessId, purchaseDate])
+}
+
+model PurchaseLine {
+  id               String        @id @default(cuid())
+  businessId       String
+  purchaseId       String
+  productId        String
+  quantity         Decimal       @db.Decimal(18, 3)
+  unitCost         Decimal       @db.Decimal(18, 2)
+  discountAmount   Decimal       @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal       @db.Decimal(18, 2)
+  warrantyDuration Int?
+  warrantyUnit     WarrantyUnit?
+  serialNumbers    String[]
+  createdAt        DateTime      @default(now())
+  purchase         Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, productId])
+  @@index([businessId, productId])
+  @@index([businessId, purchaseId])
+}
+
+model BusinessSequence {
+  businessId String
+  key        String
+  nextValue  Int      @default(1)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@id([businessId, key])
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  businessId     String
+  customerCode   String
+  name           String
+  companyName    String?
+  customerType   CustomerType @default(RETAIL)
+  phone          String
+  alternatePhone String?
+  email          String?
+  addressLine1   String?
+  addressLine2   String?
+  area           String?
+  city           String?
+  district       String?
+  postalCode     String?
+  country        String       @default("Bangladesh")
+  taxId          String?
+  binNumber      String?
+  creditLimit    Decimal?     @db.Decimal(18, 2)
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdById    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User         @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, customerCode])
+  @@index([businessId])
+  @@index([businessId, name])
+  @@index([businessId, phone])
+  @@index([businessId, isActive])
+}
+
+model Supplier {
+  id             String     @id @default(cuid())
+  businessId     String
+  supplierCode   String
+  name           String
+  companyName    String?
+  contactPerson  String?
+  phone          String
+  alternatePhone String?
+  email          String?
+  addressLine1   String?
+  addressLine2   String?
+  area           String?
+  city           String?
+  district       String?
+  postalCode     String?
+  country        String     @default("Bangladesh")
+  taxId          String?
+  binNumber      String?
+  notes          String?
+  isActive       Boolean    @default(true)
+  createdById    String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  business       Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User       @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  purchases      Purchase[]
+
+  @@unique([businessId, supplierCode])
+  @@index([businessId])
+  @@index([businessId, name])
+  @@index([businessId, phone])
+  @@index([businessId, isActive])
+}
+
+model BusinessMembership {
+  id         String           @id @default(cuid())
+  businessId String
+  userId     String
+  roleId     String
+  status     MembershipStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role       Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions   LoginSession[]
+
+  @@unique([businessId, userId])
+  @@index([businessId, status])
+  @@index([userId, status])
+}
+
+model Role {
+  id          String               @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  isSystem    Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  business    Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  memberships BusinessMembership[]
+  permissions RolePermission[]
+
+  @@unique([businessId, name])
+  @@index([businessId, createdAt])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model LoginSession {
+  id                       String             @id @default(cuid())
+  userId                   String
+  businessId               String
+  membershipId             String
+  refreshTokenHash         String
+  previousRefreshTokenHash String?
+  userAgent                String?
+  ipAddress                String?
+  expiresAt                DateTime
+  lastUsedAt               DateTime           @default(now())
+  revokedAt                DateTime?
+  revokeReason             String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  user                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business                 Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  membership               BusinessMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([businessId, createdAt])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  businessId  String
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  requestId   String?
+  ipAddress   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([businessId, entityType, entityId])
+  @@index([actorUserId, createdAt])
+}

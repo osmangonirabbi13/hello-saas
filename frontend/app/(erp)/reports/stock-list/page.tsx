@@ -1,0 +1,1 @@
+import { InventoryPage } from '@/components/inventory/inventory-page'; import { listStock } from '@/lib/api/inventory'; export default async function Page() { return <InventoryPage title="Stock List" description="Current inventory by product and default warehouse." rows={await listStock()} empty="No tracked products found." />; }

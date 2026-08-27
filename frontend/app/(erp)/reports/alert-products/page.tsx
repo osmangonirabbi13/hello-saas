@@ -1,0 +1,1 @@
+import { InventoryPage } from '@/components/inventory/inventory-page'; import { listAlerts } from '@/lib/api/inventory'; export default async function Page() { return <InventoryPage title="Alert Products" description="Zero, negative, and low-stock inventory exceptions." rows={await listAlerts()} empty="No inventory alerts." />; }

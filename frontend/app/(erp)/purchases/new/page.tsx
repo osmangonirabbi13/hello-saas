@@ -1,0 +1,1 @@
+import{PurchaseForm}from'@/components/purchase/purchase-form';import{purchaseProducts}from'@/lib/api/purchases';export default async function Page(){return <PurchaseForm products={await purchaseProducts()}/>}
