@@ -9,6 +9,10 @@ export type MembershipRecord = {
   id: string;
   businessId: string;
   businessName: string;
+  businessSlug?: string;
+  businessLogoUrl?: string | null;
+  userDisplayName?: string;
+  roleName?: string;
   businessActive: boolean;
   status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
   permissions: string[];

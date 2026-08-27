@@ -11,4 +11,9 @@ export type TenantContext = {
   businessId: string;
   membershipId: string;
   permissions: ReadonlySet<string>;
+  businessName?: string;
+  businessSlug?: string;
+  businessLogoUrl?: string | null;
+  userDisplayName?: string;
+  roleName?: string;
 };

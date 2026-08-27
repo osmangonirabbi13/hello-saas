@@ -18,6 +18,13 @@ export function resolveTenant(repository: AuthRepository): RequestHandler {
           businessId: membership.businessId,
           membershipId: membership.id,
           permissions: new Set(membership.permissions),
+          businessName: membership.businessName,
+          ...(membership.businessSlug ? { businessSlug: membership.businessSlug } : {}),
+          ...(membership.businessLogoUrl !== undefined
+            ? { businessLogoUrl: membership.businessLogoUrl }
+            : {}),
+          ...(membership.userDisplayName ? { userDisplayName: membership.userDisplayName } : {}),
+          ...(membership.roleName ? { roleName: membership.roleName } : {}),
         };
         next();
       })

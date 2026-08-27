@@ -25,6 +25,7 @@ function repository(overrides: Partial<ProductRepositoryContract> = {}): Product
     create: vi.fn().mockResolvedValue({ id: 'product-1' }),
     list: vi.fn().mockResolvedValue({ rows: [], total: 0 }),
     find: vi.fn().mockResolvedValue(null),
+    findByBarcode: vi.fn().mockResolvedValue(null),
     update: vi.fn().mockResolvedValue(null),
     deactivate: vi.fn().mockResolvedValue(false),
     ...overrides,

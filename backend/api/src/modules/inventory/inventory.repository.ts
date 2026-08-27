@@ -320,4 +320,10 @@ export class InventoryRepository implements InventoryRepositoryContract {
       include: { product: true, warehouse: true },
     });
   }
+  findSerialByNumber(businessId: string, serialNumber: string) {
+    return prisma.serialItem.findFirst({
+      where: { businessId, serialNumber },
+      include: { product: true, warehouse: true },
+    });
+  }
 }

@@ -75,6 +75,10 @@ export interface InventoryRepositoryContract {
   listWarehouses(businessId: string): Promise<object[]>;
   listSerials(businessId: string, query: Record<string, unknown>): Promise<object>;
   findSerial(businessId: string, id: string): Promise<object | null>;
+  findSerialByNumber(
+    businessId: string,
+    serialNumber: string,
+  ): Promise<({ status: string } & object) | null>;
 }
 export const OUTBOUND_MOVEMENTS = new Set<MovementType>([
   'PURCHASE_RETURN',

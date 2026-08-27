@@ -108,7 +108,11 @@ beforeAll(async () => {
   repository.membership = {
     id: 'membership-1',
     businessId: 'business-a',
-    businessName: 'Hello shop',
+    businessName: 'Rahman Computer',
+    businessSlug: 'rahman-computer',
+    businessLogoUrl: null,
+    userDisplayName: 'Owner',
+    roleName: 'OWNER',
     businessActive: true,
     status: 'ACTIVE',
     permissions: ['dashboard.read'],
@@ -163,7 +167,11 @@ describe('authentication and authorization foundation', () => {
       .set('x-business-id', 'business-b')
       .send({ businessId: 'business-b' });
     expect(response.status).toBe(200);
-    expect(response.body.data.businessId).toBe('business-a');
+    expect(response.body.data.business.id).toBe('business-a');
+    expect(response.body.data.business.name).toBe('Rahman Computer');
+    expect(response.body.data.business.slug).toBe('rahman-computer');
+    expect(response.body.data.user).toEqual({ id: 'user-1', displayName: 'Owner' });
+    expect(response.body.data.membership.role).toBe('OWNER');
   });
   it('denies an invalid membership', async () => {
     const auth = await login();
@@ -205,6 +213,14 @@ describe('authentication and authorization foundation', () => {
     const auth = await login();
     const response = await request(app)
       .get('/api/v1/purchases')
+      .set('authorization', 'Bearer ' + String(auth.body.data.accessToken));
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('PERMISSION_DENIED');
+  });
+  it('denies Sale access without the persisted API permission', async () => {
+    const auth = await login();
+    const response = await request(app)
+      .get('/api/v1/sales')
       .set('authorization', 'Bearer ' + String(auth.body.data.accessToken));
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe('PERMISSION_DENIED');

@@ -86,7 +86,7 @@ export const navigation: NavigationItem[] = [
     icon: ShoppingCart,
     children: [
       child('sale-new', 'Create Sale', '/sales/new', 'sale.create'),
-      child('sale-vat', 'Sale With Vat', '/sales/new?mode=vat', 'sale.vat.create', 'NEW'),
+      child('sale-vat', 'Sale With Vat', '/sales/vat', 'sale.vat.create', 'NEW'),
       child('sales', 'Sale List', '/sales', 'sale.read'),
       child('sale-returns', 'Sale Return List', '/sales/returns', 'sale.return.read'),
     ],
@@ -190,7 +190,12 @@ export const navigation: NavigationItem[] = [
       child('report-customers', 'Customer Report', '/reports/customers', 'report.customer'),
       child('report-receivables', 'Receivable Report', '/reports/receivables', 'report.receivable'),
       child('report-payables', 'Payable Report', '/reports/payables', 'report.payable'),
-      child('report-low-stock', 'Low Stock Product List', '/reports/low-stock-products', 'report.stock.low'),
+      child(
+        'report-low-stock',
+        'Low Stock Product List',
+        '/reports/low-stock-products',
+        'report.stock.low',
+      ),
       child('report-alerts', 'Alert Product List', '/reports/alert-products', 'report.stock.alert'),
       child(
         'report-sale-products',

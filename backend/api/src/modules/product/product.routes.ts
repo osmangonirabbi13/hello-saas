@@ -1,2 +1,33 @@
-import { Router } from 'express'; import { productCreateSchema, productUpdateSchema } from '@hello-shop/validation'; import { authenticate } from '../../middleware/auth.middleware.js'; import { resolveTenant } from '../../middleware/tenant.middleware.js'; import { requirePermission } from '../../middleware/permission.middleware.js'; import { validateBody } from '../../middleware/validate.middleware.js'; import type { AuthService } from '../auth/auth.service.js'; import type { AuthRepository } from '../auth/auth.types.js'; import { productController } from './product.controller.js'; import { ProductRepository } from './product.repository.js'; import { ProductService } from './product.service.js';
-export function createProductRouter(auth: AuthService, authRepository: AuthRepository) { const router=Router(), controller=productController(new ProductService(new ProductRepository())); router.use(authenticate(auth),resolveTenant(authRepository)); router.get('/',requirePermission('product.read'),controller.list); router.post('/',requirePermission('product.create'),validateBody(productCreateSchema),controller.create); router.get('/:id',requirePermission('product.read'),controller.find); router.patch('/:id',requirePermission('product.update'),validateBody(productUpdateSchema),controller.update); router.delete('/:id',requirePermission('product.delete'),controller.remove); return router; }
+import { Router } from 'express';
+import { productCreateSchema, productUpdateSchema } from '@hello-shop/validation';
+import { authenticate } from '../../middleware/auth.middleware.js';
+import { resolveTenant } from '../../middleware/tenant.middleware.js';
+import { requirePermission } from '../../middleware/permission.middleware.js';
+import { validateBody } from '../../middleware/validate.middleware.js';
+import type { AuthService } from '../auth/auth.service.js';
+import type { AuthRepository } from '../auth/auth.types.js';
+import { productController } from './product.controller.js';
+import { ProductRepository } from './product.repository.js';
+import { ProductService } from './product.service.js';
+export function createProductRouter(auth: AuthService, authRepository: AuthRepository) {
+  const router = Router(),
+    controller = productController(new ProductService(new ProductRepository()));
+  router.use(authenticate(auth), resolveTenant(authRepository));
+  router.get('/', requirePermission('product.read'), controller.list);
+  router.get('/lookup/barcode', requirePermission('product.read'), controller.lookupBarcode);
+  router.post(
+    '/',
+    requirePermission('product.create'),
+    validateBody(productCreateSchema),
+    controller.create,
+  );
+  router.get('/:id', requirePermission('product.read'), controller.find);
+  router.patch(
+    '/:id',
+    requirePermission('product.update'),
+    validateBody(productUpdateSchema),
+    controller.update,
+  );
+  router.delete('/:id', requirePermission('product.delete'), controller.remove);
+  return router;
+}

@@ -36,7 +36,7 @@ function ListShell({ title }: { title: string }) {
     <div className="space-y-5">
       <PageHeader
         title={title}
-        description={'Review and manage ' + title.toLowerCase() + ' records for Hello Shop.'}
+        description={'Review and manage ' + title.toLowerCase() + ' records for your business.'}
         actions={
           <>
             <Button variant="secondary">

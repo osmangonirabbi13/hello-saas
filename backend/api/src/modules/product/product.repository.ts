@@ -86,6 +86,13 @@ export class ProductRepository implements ProductRepositoryContract {
     });
   }
 
+  findByBarcode(businessId: string, barcode: string) {
+    return prisma.product.findFirst({
+      where: { businessId, barcode },
+      include: { category: true, subCategory: true, brand: true, unit: true },
+    });
+  }
+
   async update(businessId: string, id: string, input: Partial<ProductInput>) {
     const data = Object.fromEntries(
       Object.entries(input).filter(([, value]) => value !== undefined),

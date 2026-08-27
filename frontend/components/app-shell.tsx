@@ -11,6 +11,7 @@ import {
   Menu,
   Moon,
   PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Sun,
   UserRound,
@@ -19,6 +20,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { BUSINESS_PERMISSIONS_FIXTURE } from '@/lib/demo/permissions';
 import { visibleNavigation } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
+import {
+  businessInitial,
+  DEMO_AUTHENTICATED_CONTEXT,
+  formatRole,
+  loadAuthenticatedContext,
+  type AuthenticatedContext,
+} from '@/lib/authenticated-context';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -28,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const [context, setContext] = useState<AuthenticatedContext | null>(null);
   const demoMode =
     process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || process.env.NODE_ENV === 'development';
   useEffect(() => {
@@ -41,13 +50,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       const stored = JSON.parse(
         sessionStorage.getItem('hello_shop_permissions') ?? '[]',
       ) as string[];
-      setPermissions(stored.length ? stored : demoMode ? [...BUSINESS_PERMISSIONS_FIXTURE] : []);
+      const resolved = stored.length ? stored : demoMode ? [...BUSINESS_PERMISSIONS_FIXTURE] : [];
+      setPermissions(resolved);
+      if (token) {
+        void loadAuthenticatedContext(token)
+          .then((value) => {
+            setContext(value);
+            setPermissions(value.membership.permissions);
+          })
+          .catch(() => {
+            if (demoMode)
+              setContext({
+                ...DEMO_AUTHENTICATED_CONTEXT,
+                membership: { ...DEMO_AUTHENTICATED_CONTEXT.membership, permissions: resolved },
+              });
+          });
+      } else if (demoMode) {
+        setContext({
+          ...DEMO_AUTHENTICATED_CONTEXT,
+          membership: { ...DEMO_AUTHENTICATED_CONTEXT.membership, permissions: resolved },
+        });
+      }
     } catch {
       setPermissions(demoMode ? [...BUSINESS_PERMISSIONS_FIXTURE] : []);
     }
     setReady(true);
   }, [demoMode, router]);
   const items = useMemo(() => visibleNavigation(new Set(permissions)), [permissions]);
+  const activeContext = context ?? DEMO_AUTHENTICATED_CONTEXT;
   function toggleSidebar() {
     const next = !collapsed;
     setCollapsed(next);
@@ -68,27 +98,38 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className={cn('min-h-screen bg-slate-50 text-slate-900', dark && 'dark')}>
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-800 bg-[#10251f] text-slate-200 transition-transform lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-800 bg-[#10251f] text-slate-200 transition-[width,transform] duration-200 motion-reduce:transition-none lg:translate-x-0',
           !drawer && '-translate-x-full',
           collapsed && 'lg:w-[78px]',
         )}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
+        <div
+          className={cn(
+            'relative flex min-h-20 items-center gap-3 border-b border-white/10 px-4 py-3',
+            collapsed && 'lg:flex-col lg:justify-center lg:gap-2 lg:px-2',
+          )}
+        >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500 font-black text-white">
-            H
+            {businessInitial(activeContext.business.name)}
           </span>
           <div className={cn('min-w-0 flex-1', collapsed && 'lg:hidden')}>
-            <strong className="block truncate text-[15px] text-white">Hello Shop</strong>
+            <strong
+              className="block truncate text-[15px] text-white"
+              title={activeContext.business.name}
+            >
+              {activeContext.business.name}
+            </strong>
             <small className="block truncate text-[10px] uppercase tracking-widest text-emerald-300/70">
               Business ERP
             </small>
           </div>
           <button
-            className="hidden rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:block"
+            className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 lg:inline-flex"
             onClick={toggleSidebar}
-            aria-label="Collapse sidebar"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <PanelLeftClose size={18} />
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
         </div>
         <nav
@@ -171,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Headphones className="text-emerald-300" size={18} />
           <div className={cn('mt-2', collapsed && 'lg:hidden')}>
             <p className="text-xs font-semibold text-white">Need assistance?</p>
-            <p className="mt-0.5 text-[10px] text-slate-400">+880 1700 000 000</p>
+            <p className="mt-0.5 text-[10px] text-slate-400">Contact Hello Shop support</p>
           </div>
         </div>
       </aside>
@@ -182,7 +223,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label="Close navigation"
         />
       )}
-      <div className={cn('transition-[padding] lg:pl-[270px]', collapsed && 'lg:pl-[78px]')}>
+      <div
+        className={cn(
+          'transition-[padding] duration-200 motion-reduce:transition-none lg:pl-[270px]',
+          collapsed && 'lg:pl-[78px]',
+        )}
+      >
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
           <button
             className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden"
@@ -218,8 +264,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Dropdown>
             <a
               className="top-icon hidden sm:inline-flex"
-              href="tel:+8801700000000"
-              aria-label="Support"
+              href="/features"
+              aria-label="Help and product guidance"
             >
               <Headphones size={18} />
             </a>
@@ -231,11 +277,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               label={
                 <>
                   <span className="grid size-7 place-items-center rounded-lg bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                    HS
+                    {businessInitial(activeContext.business.name)}
                   </span>
                   <span className="hidden text-left sm:block">
-                    <b className="block text-xs text-slate-800">Owner</b>
-                    <small className="block text-[10px] text-slate-400">Hello Shop</small>
+                    <b className="block text-xs text-slate-800">
+                      {formatRole(activeContext.membership.role)}
+                    </b>
+                    <small
+                      className="block max-w-36 truncate text-[10px] text-slate-500"
+                      title={activeContext.business.name}
+                    >
+                      {activeContext.business.name}
+                    </small>
                   </span>
                   <ChevronDown size={13} />
                 </>

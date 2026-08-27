@@ -16,6 +16,7 @@ import {
   createWarehouseRouter,
 } from './modules/inventory/inventory.routes.js';
 import { createPurchaseRouter } from './modules/purchase/purchase.routes.js';
+import { createSaleRouter } from './modules/sale/sale.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -28,16 +29,41 @@ export function createApiRouter(dependencies: {
     '/dashboard',
     createDashboardRouter(dependencies.authService, dependencies.authRepository),
   );
-  router.use('/categories', createCategoryRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/sub-categories', createSubCategoryRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/categories',
+    createCategoryRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/sub-categories',
+    createSubCategoryRouter(dependencies.authService, dependencies.authRepository),
+  );
   router.use('/brands', createBrandRouter(dependencies.authService, dependencies.authRepository));
   router.use('/units', createUnitRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/products', createProductRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/customers', createCustomerRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/suppliers', createSupplierRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/inventory', createInventoryRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/warehouses', createWarehouseRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/products',
+    createProductRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/customers',
+    createCustomerRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/suppliers',
+    createSupplierRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/inventory',
+    createInventoryRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/warehouses',
+    createWarehouseRouter(dependencies.authService, dependencies.authRepository),
+  );
   router.use('/serials', createSerialRouter(dependencies.authService, dependencies.authRepository));
-  router.use('/purchases', createPurchaseRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/purchases',
+    createPurchaseRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use('/sales', createSaleRouter(dependencies.authService, dependencies.authRepository));
   return router;
 }

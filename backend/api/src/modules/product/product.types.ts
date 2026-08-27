@@ -15,6 +15,10 @@ export interface ProductRepositoryContract {
     query: Record<string, unknown>,
   ): Promise<{ rows: unknown[]; total: number }>;
   find(businessId: string, id: string): Promise<object | null>;
+  findByBarcode(
+    businessId: string,
+    barcode: string,
+  ): Promise<({ isActive: boolean } & object) | null>;
   update(businessId: string, id: string, input: Partial<ProductInput>): Promise<object | null>;
   deactivate(businessId: string, id: string): Promise<boolean>;
 }

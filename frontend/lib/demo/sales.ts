@@ -1,0 +1,72 @@
+export const demoSaleProducts = [
+  {
+    id: 'product-1',
+    name: 'Lenovo ThinkPad E14 Gen 5',
+    sku: 'LEN-E14-G5',
+    barcode: '89411001',
+    unit: 'Piece',
+    available: 4,
+    salePrice: 98500,
+    serialized: true,
+    serials: ['IMEI-LEN-1001', 'IMEI-LEN-1002', 'IMEI-LEN-1003', 'IMEI-LEN-1004'],
+  },
+  {
+    id: 'product-2',
+    name: 'Logitech MX Master 3S',
+    sku: 'LOG-MX3S',
+    barcode: '89411002',
+    unit: 'Piece',
+    available: 18,
+    salePrice: 12400,
+    serialized: false,
+    serials: [],
+  },
+  {
+    id: 'product-3',
+    name: 'Samsung Galaxy A55',
+    sku: 'SAM-A55',
+    barcode: '89411003',
+    unit: 'Piece',
+    available: 6,
+    salePrice: 56500,
+    serialized: true,
+    serials: ['IMEI-A55-001', 'IMEI-A55-002', 'IMEI-A55-003'],
+  },
+] as const;
+
+export const demoSales = [
+  {
+    id: 'sale-1',
+    saleNumber: 'SAL-000001',
+    invoiceNumber: 'INV-000001',
+    date: '2026-08-27',
+    customer: 'Walk-in Customer',
+    type: 'POS',
+    warehouse: 'Main Warehouse',
+    total: 12400,
+    paid: 12400,
+    due: 0,
+    status: 'POSTED',
+    createdBy: 'Development Owner',
+  },
+  {
+    id: 'sale-2',
+    saleNumber: 'SAL-000002',
+    invoiceNumber: 'INV-000002',
+    date: '2026-08-27',
+    customer: 'Rahim Enterprise',
+    type: 'VAT',
+    warehouse: 'Main Warehouse',
+    total: 113275,
+    paid: 60000,
+    due: 53275,
+    status: 'DRAFT',
+    createdBy: 'Development Owner',
+  },
+] as const;
+
+export const demoSaleCustomers = [
+  { id: '', name: 'Walk-in Customer' },
+  { id: 'customer-1', name: 'Rahim Enterprise' },
+  { id: 'customer-2', name: 'Karim Telecom' },
+] as const;

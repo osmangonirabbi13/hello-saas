@@ -68,6 +68,7 @@ function inventoryRepo(
     listWarehouses: vi.fn().mockResolvedValue([]),
     listSerials: vi.fn().mockResolvedValue({}),
     findSerial: vi.fn().mockResolvedValue(null),
+    findSerialByNumber: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }

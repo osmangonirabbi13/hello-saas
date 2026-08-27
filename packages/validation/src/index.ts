@@ -25,3 +25,4 @@ export * from './product-master.js';
 export * from './party-master.js';
 export * from './inventory.js';
 export * from './purchase.js';
+export * from './sale.js';

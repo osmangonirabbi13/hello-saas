@@ -73,6 +73,13 @@ export function inventoryController(service: InventoryService) {
       .then((data) => success(res, data))
       .catch(next);
   };
+  const lookupSerial: RequestHandler = (req, res, next) => {
+    const serial = typeof req.query.serial === 'string' ? req.query.serial : '';
+    void service
+      .lookupSerial(req.tenant!.businessId, serial)
+      .then((data) => success(res, data))
+      .catch(next);
+  };
   return {
     stock,
     stockOne,
@@ -85,5 +92,6 @@ export function inventoryController(service: InventoryService) {
     warehouses,
     serials,
     serial,
+    lookupSerial,
   };
 }

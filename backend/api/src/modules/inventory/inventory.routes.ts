@@ -78,6 +78,7 @@ export function createSerialRouter(auth: AuthService, repository: AuthRepository
     validateQuery(serialListQuerySchema),
     controller.serials,
   );
+  router.get('/lookup', requirePermission('serial.read'), controller.lookupSerial);
   router.get('/:id', requirePermission('serial.read'), controller.serial);
   return router;
 }

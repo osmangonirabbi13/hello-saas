@@ -37,6 +37,7 @@ function repository(
     listWarehouses: vi.fn().mockResolvedValue([]),
     listSerials: vi.fn().mockResolvedValue({ rows: [], total: 0 }),
     findSerial: vi.fn().mockResolvedValue(null),
+    findSerialByNumber: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }

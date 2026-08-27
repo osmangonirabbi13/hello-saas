@@ -15,8 +15,21 @@ export function createDashboardRouter(service: AuthService, repository: AuthRepo
     requirePermission('dashboard.read'),
     (request, response) => {
       success(response, {
-        businessId: request.tenant?.businessId,
-        membershipId: request.tenant?.membershipId,
+        user: {
+          id: request.auth?.id,
+          displayName: request.tenant?.userDisplayName,
+        },
+        business: {
+          id: request.tenant?.businessId,
+          name: request.tenant?.businessName,
+          slug: request.tenant?.businessSlug,
+          logoUrl: request.tenant?.businessLogoUrl ?? null,
+        },
+        membership: {
+          id: request.tenant?.membershipId,
+          role: request.tenant?.roleName,
+          permissions: [...(request.tenant?.permissions ?? [])],
+        },
       });
     },
   );

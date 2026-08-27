@@ -86,6 +86,17 @@ export class InventoryService {
     if (!item) throw new AppError(404, 'SERIAL_NOT_FOUND', 'Serial item was not found.');
     return item;
   }
+  async lookupSerial(businessId: string, serialNumber: string) {
+    const item = await this.repository.findSerialByNumber(businessId, serialNumber.trim());
+    if (!item) throw new AppError(404, 'SERIAL_NOT_FOUND', 'No serial or IMEI matches this value.');
+    if (item.status !== 'IN_STOCK')
+      throw new AppError(
+        409,
+        'SERIAL_UNAVAILABLE',
+        `Serial is ${item.status.toLowerCase().replaceAll('_', ' ')}.`,
+      );
+    return item;
+  }
   static status(quantity: number, reorderLevel: number) {
     return stockStatus(quantity, reorderLevel);
   }

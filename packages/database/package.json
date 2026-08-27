@@ -9,6 +9,7 @@
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json",
     "generate": "prisma generate",
+    "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "bootstrap:dev": "tsx src/dev-bootstrap.ts",
     "lint": "eslint src",

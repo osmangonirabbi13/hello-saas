@@ -69,6 +69,26 @@ enum PurchaseStatus {
   CANCELLED
 }
 
+enum SaleType {
+  REGULAR
+  VAT
+  POS
+}
+
+enum SaleStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
 model User {
   id                 String               @id @default(cuid())
   email              String               @unique
@@ -93,6 +113,9 @@ model User {
   purchasesCreated   Purchase[]           @relation("PurchaseCreator")
   purchasesPosted    Purchase[]           @relation("PurchasePoster")
   purchasesCancelled Purchase[]           @relation("PurchaseCanceller")
+  salesCreated       Sale[]               @relation("SaleCreator")
+  salesPosted        Sale[]               @relation("SalePoster")
+  salesCancelled     Sale[]               @relation("SaleCanceller")
 }
 
 model Business {
@@ -120,8 +143,25 @@ model Business {
   stockAdjustments StockAdjustment[]
   serialItems      SerialItem[]
   purchases        Purchase[]
+  sales            Sale[]
+  invoices         Invoice[]
+  subscription     BusinessSubscription?
 
   @@index([createdAt])
+}
+
+model BusinessSubscription {
+  id             String             @id @default(cuid())
+  businessId     String             @unique
+  planCode       String?
+  status         SubscriptionStatus @default(TRIALING)
+  trialStartedAt DateTime
+  trialEndsAt    DateTime
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  business       Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@index([status, trialEndsAt])
 }
 
 model Category {
@@ -241,6 +281,7 @@ model Product {
   adjustmentLines    StockAdjustmentLine[]
   serialItems        SerialItem[]
   purchaseLines      PurchaseLine[]
+  saleLines          SaleLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -269,6 +310,7 @@ model Warehouse {
   adjustments StockAdjustment[]
   serialItems SerialItem[]
   purchases   Purchase[]
+  sales       Sale[]
 
   @@unique([businessId, code])
   @@index([businessId, isActive])
@@ -369,6 +411,9 @@ model SerialItem {
   product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
   purchase      Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
 
+  sale          Sale?        @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer      Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
   @@unique([businessId, serialNumber])
   @@index([businessId, productId])
   @@index([businessId, warehouseId])
@@ -448,6 +493,90 @@ model BusinessSequence {
   @@id([businessId, key])
 }
 
+model Sale {
+  id               String     @id @default(cuid())
+  businessId       String
+  saleNumber       String
+  invoiceNumber    String
+  customerId       String?
+  warehouseId      String
+  type             SaleType   @default(REGULAR)
+  saleDate         DateTime
+  dueDate          DateTime?
+  reference        String?
+  subtotal         Decimal    @db.Decimal(18, 2)
+  discountAmount   Decimal    @default(0) @db.Decimal(18, 2)
+  additionalCost   Decimal    @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal    @default(0) @db.Decimal(18, 2)
+  grandTotal       Decimal    @db.Decimal(18, 2)
+  paidAmount       Decimal    @default(0) @db.Decimal(18, 2)
+  dueAmount        Decimal    @db.Decimal(18, 2)
+  note             String?
+  status           SaleStatus @default(DRAFT)
+  createdById      String
+  postedById       String?
+  postedAt         DateTime?
+  cancelledById    String?
+  cancelledAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  business         Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer         Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  warehouse        Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy        User       @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy         User?      @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy      User?      @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  lines            SaleLine[]
+  serialItems      SerialItem[]
+  invoice          Invoice?
+
+  @@unique([businessId, saleNumber])
+  @@unique([businessId, invoiceNumber])
+  @@index([businessId, status])
+  @@index([businessId, type])
+  @@index([businessId, customerId])
+  @@index([businessId, warehouseId])
+  @@index([businessId, saleDate])
+  @@index([businessId, createdAt])
+}
+
+model SaleLine {
+  id               String       @id @default(cuid())
+  businessId       String
+  saleId           String
+  productId        String
+  quantity         Decimal      @db.Decimal(18, 3)
+  unitPrice        Decimal      @db.Decimal(18, 2)
+  discountAmount   Decimal      @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal      @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal      @db.Decimal(18, 2)
+  warrantyDuration Int?
+  warrantyUnit     WarrantyUnit?
+  serialNumbers    String[]
+  createdAt        DateTime     @default(now())
+  sale             Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([saleId, productId])
+  @@index([businessId, productId])
+  @@index([businessId, saleId])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  businessId    String
+  saleId        String   @unique
+  invoiceNumber String
+  issuedAt      DateTime
+  total         Decimal  @db.Decimal(18, 2)
+  createdAt     DateTime @default(now())
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, invoiceNumber])
+  @@index([businessId, issuedAt])
+}
+
 model Customer {
   id             String       @id @default(cuid())
   businessId     String
@@ -475,6 +604,9 @@ model Customer {
   updatedAt      DateTime     @updatedAt
   business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
   createdBy      User         @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  sales          Sale[]
+  serialItems    SerialItem[]
 
   @@unique([businessId, customerCode])
   @@index([businessId])

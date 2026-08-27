@@ -20,7 +20,16 @@ export class PrismaAuthRepository implements AuthRepository {
           },
         });
         const business = await transaction.business.create({
-          data: { name: input.businessName, slug: input.businessSlug },
+          data: {
+            name: input.businessName,
+            slug: input.businessSlug,
+            subscription: {
+              create: {
+                trialStartedAt: new Date(),
+                trialEndsAt: new Date(Date.now() + 7 * 86_400_000),
+              },
+            },
+          },
         });
         const access = await provisionBusinessAccess(transaction, business.id);
         const ownerRoleId = access.roles.get('OWNER');
@@ -55,6 +64,7 @@ export class PrismaAuthRepository implements AuthRepository {
       orderBy: { createdAt: 'asc' },
       include: {
         business: true,
+        user: true,
         role: { include: { permissions: { include: { permission: true } } } },
       },
     });
@@ -108,6 +118,7 @@ export class PrismaAuthRepository implements AuthRepository {
         membership: {
           include: {
             business: true,
+            user: true,
             role: { include: { permissions: { include: { permission: true } } } },
           },
         },
@@ -127,13 +138,18 @@ export class PrismaAuthRepository implements AuthRepository {
     id: string;
     businessId: string;
     status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
-    business: { name: string; isActive: boolean };
-    role: { permissions: { permission: { key: string } }[] };
+    business: { name: string; slug: string; isActive: boolean };
+    user: { displayName: string };
+    role: { name: string; permissions: { permission: { key: string } }[] };
   }): MembershipRecord {
     return {
       id: membership.id,
       businessId: membership.businessId,
       businessName: membership.business.name,
+      businessSlug: membership.business.slug,
+      businessLogoUrl: null,
+      userDisplayName: membership.user.displayName,
+      roleName: membership.role.name,
       businessActive: membership.business.isActive,
       status: membership.status,
       permissions: membership.role.permissions.map((item) => item.permission.key),
