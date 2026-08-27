@@ -4,8 +4,14 @@ export type ProductSummary = {
   id: string;
   name: string;
   sku: string;
+  barcode: string;
   category: string;
+  brand: string;
+  purchasePrice: number;
   salePrice: number;
+  stock: number;
+  serialized: boolean;
+  stockStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   isActive: boolean;
 };
 export type MasterRecord = {
@@ -47,8 +53,19 @@ export function listProducts(): Promise<ProductSummary[]> {
       id: 'demo-product-' + String(index + 1),
       name: item.product,
       sku: item.sku,
+      barcode: ['89411001', '89411003', '89411002', '89411004'][index] ?? '',
       category: item.category,
+      brand: ['Lenovo', 'Samsung', 'Logitech', 'HP'][index] ?? 'Unbranded',
+      purchasePrice: Math.round(item.price * 0.84),
       salePrice: item.price,
+      stock: item.stock,
+      serialized: index < 2,
+      stockStatus:
+        item.status === 'Out of stock'
+          ? 'OUT_OF_STOCK'
+          : item.status === 'Low stock'
+            ? 'LOW_STOCK'
+            : 'IN_STOCK',
       isActive: item.status !== 'Out of stock',
     })),
   );

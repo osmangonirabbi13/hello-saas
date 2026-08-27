@@ -36,10 +36,14 @@ export function applyProductScan(
 }
 
 export function appendUniqueSerial(serials: string, serial: string) {
-  const values = serials
+  const values = parseSerials(serials);
+  if (values.includes(serial)) return { value: serials, added: false };
+  return { value: [...values, serial].join('\n'), added: true };
+}
+
+export function parseSerials(serials: string) {
+  return serials
     .split(/[\n,]+/)
     .map((value) => value.trim())
     .filter(Boolean);
-  if (values.includes(serial)) return { value: serials, added: false };
-  return { value: [...values, serial].join('\n'), added: true };
 }

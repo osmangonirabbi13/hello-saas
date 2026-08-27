@@ -32,7 +32,9 @@ export function PosCheckout({
     setCart((current) => ({ ...current, [id]: Math.max(0, (current[id] ?? 0) + delta) }));
   const scanner = useBarcodeScanner({
     onScan: (barcode) => {
-      const serialProduct = products.find((item) => item.serials.some((serial) => serial === barcode));
+      const serialProduct = products.find((item) =>
+        item.serials.some((serial) => serial === barcode),
+      );
       if (serialProduct) {
         const selected = selectedSerials[serialProduct.id] ?? [];
         if (selected.includes(barcode))
@@ -137,6 +139,18 @@ export function PosCheckout({
                         ? ` · ${selectedSerials[product.id]?.length ?? 0} serial selected`
                         : ''}
                     </p>
+                    {product.serialized && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {(selectedSerials[product.id] ?? []).map((serial) => (
+                          <span
+                            className="rounded-md bg-emerald-50 px-2 py-1 font-mono text-xs text-emerald-800"
+                            key={serial}
+                          >
+                            IMEI: {serial}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     aria-label="Remove"

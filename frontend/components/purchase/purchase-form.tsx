@@ -1,13 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, type FieldPath } from 'react-hook-form';
 import { Plus, Save, ScanBarcode, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, FormSection, PageHeader, Sheet } from '@/components/ui/primitives';
 import type { PurchaseProduct, PurchaseSummary } from '@/lib/api/purchases';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupProductBarcode } from '@/lib/api/scanner-lookups';
 import { applyProductScan } from '@/lib/transaction-scanner';
+import { SerialEntry } from '@/components/scanner/serial-entry';
 type Line = {
   productId: string;
   quantity: number;
@@ -282,6 +283,22 @@ export function PurchaseForm({
                           <p className="mb-3 text-sm text-slate-500">
                             Paste one serial per line or comma-separated. Duplicates are rejected by
                             the API.
+                          </p>
+                          <SerialEntry
+                            mode="receive"
+                            productName={product.name}
+                            required={required}
+                            value={values.lines[index]?.serials ?? ''}
+                            onChange={(serialValue) =>
+                              setValue(
+                                ('lines.' + index + '.serials') as FieldPath<Values>,
+                                serialValue,
+                                { shouldDirty: true, shouldValidate: true },
+                              )
+                            }
+                          />
+                          <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">
+                            Bulk paste fallback
                           </p>
                           <textarea
                             className="min-h-56 w-full rounded-lg border p-3"

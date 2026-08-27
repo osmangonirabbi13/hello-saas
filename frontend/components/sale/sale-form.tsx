@@ -1,13 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, type FieldPath } from 'react-hook-form';
 import { Plus, Save, ScanBarcode, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, FormSection, PageHeader, Sheet } from '@/components/ui/primitives';
 import type { SaleCustomer, SaleMode, SaleProduct, SaleSummary } from '@/lib/api/sales';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupProductBarcode, lookupSellableSerial } from '@/lib/api/scanner-lookups';
 import { appendUniqueSerial, applyProductScan } from '@/lib/transaction-scanner';
+import { SerialEntry } from '@/components/scanner/serial-entry';
 
 type Line = {
   productId: string;
@@ -115,12 +116,14 @@ export function SaleForm({
           addProduct(localProduct ?? (await lookupProductBarcode<SaleProduct>(value)));
         } catch {
           try {
-          const localOwner = products.find((item) => item.serials.some((serial) => serial === value));
+            const localOwner = products.find((item) =>
+              item.serials.some((serial) => serial === value),
+            );
             const resolved = localOwner
               ? { serialNumber: value, product: localOwner }
               : await lookupSellableSerial<{ serialNumber: string; product: SaleProduct }>(value);
             const current = getValues('lines');
-          const index = current.findIndex((line) => line.productId === resolved.product.id);
+            const index = current.findIndex((line) => line.productId === resolved.product.id);
             if (index === -1) {
               append({
                 productId: resolved.product.id,
@@ -359,6 +362,20 @@ export function SaleForm({
                               </label>
                             ))}
                           </div>
+                          <SerialEntry
+                            mode="select"
+                            productName={product.name}
+                            required={required}
+                            value={values.lines[index]?.serials ?? ''}
+                            available={product.serials}
+                            onChange={(serialValue) =>
+                              setValue(
+                                ('lines.' + index + '.serials') as FieldPath<Values>,
+                                serialValue,
+                                { shouldDirty: true, shouldValidate: true },
+                              )
+                            }
+                          />
                           <textarea
                             className="mt-4 min-h-36 w-full rounded-lg border p-3"
                             placeholder="Paste selected serials"

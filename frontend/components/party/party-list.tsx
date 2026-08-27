@@ -3,7 +3,7 @@ import { Plus, RotateCcw } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import {
   Button,
-  CurrencyDisplay,
+  EmptyState,
   FilterBar,
   PageHeader,
   SearchInput,
@@ -32,13 +32,9 @@ export function PartyList({ kind, rows }: { kind: PartyKind; rows: PartySummary[
     { key: 'company', label: 'Company' },
     {
       key: 'demoBalance',
-      label: kind === 'customer' ? 'Receivable' : 'Payable',
+      label: 'Accounting',
       align: 'right' as const,
-      render: (row: PartySummary) => (
-        <span title="Demo-only pending accounting integration">
-          <CurrencyDisplay value={row.demoBalance} />
-        </span>
-      ),
+      render: () => <span title="Demo-only pending accounting integration">Not connected</span>,
     },
     {
       key: 'isActive',
@@ -92,7 +88,14 @@ export function PartyList({ kind, rows }: { kind: PartyKind; rows: PartySummary[
           Reset
         </Button>
       </FilterBar>
-      <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} />
+      {rows.length ? (
+        <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} />
+      ) : (
+        <EmptyState
+          title={'No ' + label.toLowerCase() + 's yet'}
+          description={'Add the first ' + label.toLowerCase() + ' to begin.'}
+        />
+      )}
     </div>
   );
 }
