@@ -11,7 +11,6 @@ export type PartySummary = {
   district: string;
   isActive: boolean;
   updatedAt: string;
-  demoBalance: number;
 };
 export function listParties(kind: PartyKind): Promise<PartySummary[]> {
   const source = kind === 'customer' ? demoCustomers : demoSuppliers;
@@ -27,14 +26,6 @@ export function listParties(kind: PartyKind): Promise<PartySummary[]> {
       district: item.district,
       isActive: item.status === 'Active',
       updatedAt: '26 Aug 2026',
-      demoBalance:
-        kind === 'customer'
-          ? 'balance' in item
-            ? Number(item.balance)
-            : 0
-          : 'payable' in item
-            ? Number(item.payable)
-            : 0,
     })),
   );
 }

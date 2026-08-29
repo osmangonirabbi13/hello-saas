@@ -31,12 +31,6 @@ export function PartyList({ kind, rows }: { kind: PartyKind; rows: PartySummary[
     ...(kind === 'customer' ? [{ key: 'type' as const, label: 'Type' }] : []),
     { key: 'company', label: 'Company' },
     {
-      key: 'demoBalance',
-      label: 'Accounting',
-      align: 'right' as const,
-      render: () => <span title="Demo-only pending accounting integration">Not connected</span>,
-    },
-    {
       key: 'isActive',
       label: 'Status',
       render: (row: PartySummary) => (

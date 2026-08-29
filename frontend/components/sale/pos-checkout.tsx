@@ -4,6 +4,9 @@ import { Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, CurrencyDisplay, PageHeader } from '@/components/ui/primitives';
 import type { SaleCustomer, SaleProduct } from '@/lib/api/sales';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import { PosSerialPanel } from '@/components/sale/pos-serial-panel';
+import { findProductForSerial, selectPosSerial } from '@/lib/pos-serial';
+import { lookupSellableSerial } from '@/lib/api/scanner-lookups';
 
 export function PosCheckout({
   products,
@@ -17,6 +20,7 @@ export function PosCheckout({
   const [paid, setPaid] = useState(0);
   const [message, setMessage] = useState('');
   const [selectedSerials, setSelectedSerials] = useState<Record<string, string[]>>({});
+  const [pendingProductId, setPendingProductId] = useState<string | null>(null);
   const filtered = useMemo(
     () =>
       products.filter((product) =>
@@ -27,35 +31,70 @@ export function PosCheckout({
     [products, query],
   );
   const rows = products.filter((product) => cart[product.id]);
+  const pendingProduct = products.find((product) => product.id === pendingProductId);
   const total = rows.reduce((sum, product) => sum + product.salePrice * (cart[product.id] ?? 0), 0);
-  const change = (id: string, delta: number) =>
+  const change = (id: string, delta: number) => {
+    if (products.find((product) => product.id === id)?.serialized) return;
     setCart((current) => ({ ...current, [id]: Math.max(0, (current[id] ?? 0) + delta) }));
+  };
+  const addSerializedUnit = (
+    product: Pick<SaleProduct, 'id' | 'name' | 'serialized' | 'available'> & {
+      serials: readonly string[];
+    },
+    serial: string,
+  ) => {
+    const result = selectPosSerial(selectedSerials, product, serial);
+    if (result.outcome === 'duplicate') {
+      setMessage('This Serial / IMEI is already selected.');
+      return;
+    }
+    if (result.outcome !== 'selected') {
+      setMessage('This Serial / IMEI is unavailable.');
+      return;
+    }
+    const serials = result.selected[product.id] ?? [];
+    setSelectedSerials(result.selected);
+    setCart((current) => ({ ...current, [product.id]: serials.length }));
+    setPendingProductId(product.id);
+    setQuery('');
+    setMessage(product.name + ': serial attached and added.');
+  };
   const scanner = useBarcodeScanner({
     onScan: (barcode) => {
-      const serialProduct = products.find((item) =>
-        item.serials.some((serial) => serial === barcode),
-      );
+      const serialProduct = findProductForSerial(products, barcode);
       if (serialProduct) {
-        const selected = selectedSerials[serialProduct.id] ?? [];
-        if (selected.includes(barcode))
-          return setMessage('This Serial / IMEI is already selected.');
-        if (selected.length >= serialProduct.available)
-          return setMessage('No more sellable serial stock is available.');
-        setSelectedSerials((current) => ({
-          ...current,
-          [serialProduct.id]: [...(current[serialProduct.id] ?? []), barcode],
-        }));
-        setCart((current) => ({
-          ...current,
-          [serialProduct.id]: (current[serialProduct.id] ?? 0) + 1,
-        }));
-        setQuery('');
-        return setMessage(`${serialProduct.name}: serial attached and added.`);
+        addSerializedUnit(serialProduct, barcode);
+        return;
       }
       const product = products.find((item) => item.barcode === barcode);
-      if (!product) return setMessage(`Product or sellable Serial / IMEI not found: ${barcode}.`);
+      if (!product) {
+        setMessage('Looking up Serial / IMEI...');
+        void lookupSellableSerial<{
+          serialNumber: string;
+          product: { id: string };
+          warehouse: { id: string };
+        }>(barcode)
+          .then((resolved) => {
+            const localProduct = products.find((item) => item.id === resolved.product.id);
+            if (!localProduct || resolved.warehouse.id !== 'warehouse-main') {
+              setMessage('Serial unavailable for this product or warehouse.');
+              return;
+            }
+            addSerializedUnit(
+              { ...localProduct, serials: [...localProduct.serials, resolved.serialNumber] },
+              resolved.serialNumber,
+            );
+          })
+          .catch(() =>
+            setMessage('Serial unavailable, sold, damaged, in RMA, or in another warehouse.'),
+          );
+        return;
+      }
       if (product.available <= 0) return setMessage(`${product.name} is out of stock.`);
-      if (product.serialized) return setMessage(`${product.name}: scan an IN_STOCK Serial / IMEI.`);
+      if (product.serialized) {
+        setPendingProductId(product.id);
+        return setMessage(`${product.name}: Serial / IMEI required.`);
+      }
       change(product.id, 1);
       setQuery('');
       setMessage(`${product.name} added to cart.`);
@@ -94,6 +133,22 @@ export function PosCheckout({
               onKeyDown={scanner.onKeyDown}
             />
           </label>
+          {pendingProduct && (
+            <PosSerialPanel
+              product={pendingProduct}
+              selected={selectedSerials[pendingProduct.id] ?? []}
+              onClose={() => setPendingProductId(null)}
+              onChange={(serials) => {
+                setSelectedSerials((current) => ({ ...current, [pendingProduct.id]: serials }));
+                setCart((current) => ({ ...current, [pendingProduct.id]: serials.length }));
+                setMessage(
+                  serials.length
+                    ? pendingProduct.name + ': Serial selected and cart updated.'
+                    : pendingProduct.name + ': Serial / IMEI required.',
+                );
+              }}
+            />
+          )}
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((product) => (
               <button
@@ -102,7 +157,8 @@ export function PosCheckout({
                 type="button"
                 onClick={() =>
                   product.serialized
-                    ? setMessage(`${product.name}: scan or select a Serial / IMEI.`)
+                    ? (setPendingProductId(product.id),
+                      setMessage(`${product.name}: scan or select a Serial / IMEI.`))
                     : change(product.id, 1)
                 }
               >
@@ -155,7 +211,10 @@ export function PosCheckout({
                   <button
                     aria-label="Remove"
                     type="button"
-                    onClick={() => setCart((current) => ({ ...current, [product.id]: 0 }))}
+                    onClick={() => {
+                      setCart((current) => ({ ...current, [product.id]: 0 }));
+                      setSelectedSerials((current) => ({ ...current, [product.id]: [] }));
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>

@@ -37,6 +37,10 @@ export function SerialEntry({
       setFeedback(`${serial} is already selected.`);
       return;
     }
+    if (mode === 'select' && available && !available.includes(serial)) {
+      setFeedback(`${serial} is unavailable for this product and warehouse.`);
+      return;
+    }
     onChange(next.value);
     setFeedback(`${serial} ${mode === 'receive' ? 'received' : 'selected'}.`);
     if (inputRef.current) inputRef.current.value = '';

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { MarketingMotion } from './marketing-motion';
 import { plans } from '@/lib/plans';
+import { PricingPeriodGrid } from './pricing-grid';
 
 export function MarketingNav() {
   return (
@@ -385,7 +386,7 @@ export function MarketingPage({ kind = 'home' }: { kind?: 'home' | 'features' | 
                   All trials are created securely by the server and last seven days.
                 </p>
               </div>
-              <PricingGrid />
+              <PricingPeriodGrid />
             </div>
           </section>
         )}

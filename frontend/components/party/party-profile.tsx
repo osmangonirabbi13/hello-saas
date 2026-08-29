@@ -2,10 +2,6 @@ import Link from 'next/link';
 import { FormSection, PageHeader, StatusBadge } from '@/components/ui/primitives';
 import type { PartyKind, PartySummary } from '@/lib/api/parties';
 export function PartyProfile({ kind, party }: { kind: PartyKind; party: PartySummary }) {
-  const future =
-    kind === 'customer'
-      ? ['Sales', 'Payments', 'Receivable', 'Returns', 'Warranty', 'Activity']
-      : ['Purchases', 'Payments', 'Payable', 'Purchase Returns', 'Warranty / RMA'];
   return (
     <div className="space-y-5">
       <PageHeader
@@ -13,6 +9,12 @@ export function PartyProfile({ kind, party }: { kind: PartyKind; party: PartySum
         description={party.code}
         actions={
           <>
+            <Link
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+              href={'/' + kind + 's'}
+            >
+              Back to {kind === 'customer' ? 'Customers' : 'Suppliers'}
+            </Link>
             <StatusBadge tone={party.isActive ? 'success' : 'neutral'}>
               {party.isActive ? 'Active' : 'Inactive'}
             </StatusBadge>
@@ -33,8 +35,14 @@ export function PartyProfile({ kind, party }: { kind: PartyKind; party: PartySum
               <dd className="font-semibold">{party.phone}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Company</dt>
-              <dd>{party.company}</dd>
+              <dt className="text-slate-500">
+                {kind === 'supplier' ? 'Contact person' : 'Customer type'}
+              </dt>
+              <dd>
+                {kind === 'supplier'
+                  ? party.contactPerson || 'Not specified'
+                  : party.type || 'Not specified'}
+              </dd>
             </div>
           </dl>
         </FormSection>
@@ -42,16 +50,38 @@ export function PartyProfile({ kind, party }: { kind: PartyKind; party: PartySum
           <p className="text-sm">{party.district}, Bangladesh</p>
         </FormSection>
       </div>
-      <FormSection
-        title="Future integrations"
-        description="These sections remain empty until their transaction and ledger modules exist."
-      >
-        <div className="flex flex-wrap gap-2">
-          {future.map((item) => (
-            <StatusBadge key={item}>{item} — Not available yet</StatusBadge>
-          ))}
-        </div>
-      </FormSection>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <FormSection title="Business details">
+          <dl className="grid gap-3 text-sm">
+            <div>
+              <dt className="text-slate-500">
+                {kind === 'customer' ? 'Customer type' : 'Contact person'}
+              </dt>
+              <dd className="font-semibold">
+                {kind === 'customer'
+                  ? party.type || 'Not specified'
+                  : party.contactPerson || 'Not specified'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Company</dt>
+              <dd className="font-semibold">{party.company}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Last updated</dt>
+              <dd>{party.updatedAt}</dd>
+            </div>
+          </dl>
+        </FormSection>
+        <FormSection
+          title="Activity"
+          description="Transaction activity will appear here when supported records are available."
+        >
+          <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
+            No supported activity is available for this profile yet.
+          </p>
+        </FormSection>
+      </div>
     </div>
   );
 }
