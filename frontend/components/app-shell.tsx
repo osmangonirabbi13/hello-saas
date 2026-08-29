@@ -27,6 +27,9 @@ import {
   loadAuthenticatedContext,
   type AuthenticatedContext,
 } from '@/lib/authenticated-context';
+import { SyncCenter } from '@/components/offline/sync-center';
+import { getOfflineDb } from '@/lib/offline/db';
+import { SyncOutboxRepository } from '@/lib/offline/repositories';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -83,7 +86,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     setCollapsed(next);
     localStorage.setItem('hello_shop_sidebar', next ? 'collapsed' : 'expanded');
   }
-  function logout() {
+  async function logout() {
+    const scope = { userId: activeContext.user.id, businessRef: activeContext.business.id };
+    const unsynced = (await new SyncOutboxRepository(getOfflineDb()).pending(scope)).length;
+    if (
+      unsynced &&
+      !window.confirm(
+        `${unsynced} changes have not synced yet. Cancel to sync first, or continue to sign out while keeping them safely partitioned.`,
+      )
+    )
+      return;
     sessionStorage.removeItem('hello_shop_access');
     sessionStorage.removeItem('hello_shop_permissions');
     router.replace('/login');
@@ -248,6 +260,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </kbd>
           </label>
           <div className="ml-auto flex items-center gap-1.5">
+            <SyncCenter
+              scope={{ userId: activeContext.user.id, businessRef: activeContext.business.id }}
+            />
             <button className="top-icon" onClick={() => setDark(!dark)} aria-label="Toggle theme">
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -299,7 +314,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <UserRound size={15} />
                 My account
               </MenuItem>
-              <MenuItem onSelect={logout}>
+              <MenuItem onSelect={() => void logout()}>
                 <LogOut size={15} />
                 Sign out
               </MenuItem>
