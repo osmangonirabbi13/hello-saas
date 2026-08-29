@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { productCreateSchema } from '@hello-shop/validation';
+import type { MutationIdentity } from '../sync/mutation-idempotency.js';
 export type ProductInput = z.infer<typeof productCreateSchema>;
 export interface ProductRepositoryContract {
   masters(businessId: string, input: ProductInput): Promise<{ valid: boolean; reason?: string }>;
@@ -9,7 +10,7 @@ export interface ProductRepositoryContract {
     barcode?: string | null,
     excludeId?: string,
   ): Promise<boolean>;
-  create(businessId: string, userId: string, input: ProductInput): Promise<unknown>;
+  create(businessId: string, userId: string, input: ProductInput, identity?: MutationIdentity): Promise<unknown>;
   list(
     businessId: string,
     query: Record<string, unknown>,
@@ -19,6 +20,6 @@ export interface ProductRepositoryContract {
     businessId: string,
     barcode: string,
   ): Promise<({ isActive: boolean } & object) | null>;
-  update(businessId: string, id: string, input: Partial<ProductInput>): Promise<object | null>;
+  update(businessId: string, id: string, input: Partial<ProductInput>, expectedVersion?: number): Promise<object | null>;
   deactivate(businessId: string, id: string): Promise<boolean>;
 }

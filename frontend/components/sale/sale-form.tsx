@@ -9,6 +9,7 @@ import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupProductBarcode, lookupSellableSerial } from '@/lib/api/scanner-lookups';
 import { appendUniqueSerial, applyProductScan } from '@/lib/transaction-scanner';
 import { SerialEntry } from '@/components/scanner/serial-entry';
+import { saveOfflineCapable } from '@/lib/offline/save';
 
 type Line = {
   productId: string;
@@ -157,9 +158,40 @@ export function SaleForm({
       })();
     },
   });
-  const save = handleSubmit(() =>
-    setMessage('Draft validated. The authenticated API recalculates and persists all totals.'),
-  );
+  const save = handleSubmit(async (draft) => {
+    setMessage('Saving…');
+    const hasSerials = draft.lines.some((line) => line.serials.trim());
+    const payload = {
+      customerId: draft.customerId || null,
+      warehouseId: draft.warehouseId,
+      type: mode,
+      saleDate: draft.saleDate,
+      dueDate: draft.dueDate || null,
+      reference: draft.reference || null,
+      discountAmount: String(draft.discount),
+      additionalCost: String(draft.additionalCost),
+      taxAmount: String(draft.tax),
+      paidAmount: String(draft.paid),
+      note: !navigator.onLine && hasSerials ? 'Serial selections require online revalidation before posting.' : null,
+      lines: draft.lines.map((line) => ({
+        productId: line.productId,
+        quantity: String(line.quantity),
+        unitPrice: String(line.unitPrice),
+        discountAmount: String(line.discount),
+        taxAmount: String(line.tax),
+        warrantyDuration: null,
+        warrantyUnit: null,
+        serialNumbers: line.serials.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+      })),
+    };
+    setMessage(
+      await saveOfflineCapable({
+        entityType: 'SALE_DRAFT',
+        ...(sale ? { serverId: sale.id, baseVersion: 1 } : {}),
+        payload,
+      }),
+    );
+  });
   const title = sale ? 'Edit Draft Sale' : mode === 'VAT' ? 'VAT Sale' : 'Create Sale';
   return (
     <form className="space-y-5" onSubmit={(event) => void save(event)}>
@@ -181,9 +213,7 @@ export function SaleForm({
               title="Post this sale?"
               description="Posting will deduct inventory and finalize the invoice."
               trigger={<Button type="button">Post Sale</Button>}
-              onConfirm={() =>
-                setMessage('Posting is available through the authenticated Sale API.')
-              }
+              onConfirm={() => setMessage(navigator.onLine ? 'Posting is available through the authenticated Sale API.' : 'Internet connection required to post this sale.')}
             />
           </>
         }

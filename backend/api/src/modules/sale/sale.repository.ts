@@ -1,6 +1,7 @@
 import { prisma } from '@hello-shop/database';
 import type { Prisma, SaleStatus, SaleType } from '@hello-shop/database';
 import { AppError } from '../../common/errors/app-error.js';
+import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 import type {
   PostingSale,
   SaleInput,
@@ -123,9 +124,10 @@ export class SaleRepository implements SaleRepositoryContract {
     });
   }
 
-  createDraft(businessId: string, userId: string, input: SaleInput, totals: SaleTotals) {
-    return prisma.$transaction(
-      async (tx) => {
+  createDraft(businessId: string, userId: string, input: SaleInput, totals: SaleTotals, identity?: MutationIdentity) {
+    return executeIdempotent({
+      businessId, userId, identity, payload: input,
+      execute: async (tx) => {
         const [saleValue, invoiceValue] = await Promise.all([
           allocate(tx, businessId, 'SALE'),
           allocate(tx, businessId, 'INVOICE'),
@@ -155,18 +157,22 @@ export class SaleRepository implements SaleRepositoryContract {
         });
         return serialize(sale);
       },
-      { isolationLevel: 'Serializable' },
-    );
+    });
   }
 
-  updateDraft(businessId: string, id: string, input: SaleInput, totals: SaleTotals) {
+  updateDraft(businessId: string, id: string, input: SaleInput, totals: SaleTotals, expectedVersion?: number) {
     return prisma.$transaction(
       async (tx) => {
         const changed = await tx.sale.updateMany({
-          where: { id, businessId, status: 'DRAFT' },
-          data: saleData(input, totals),
+          where: { id, businessId, status: 'DRAFT', ...(expectedVersion ? { version: expectedVersion } : {}) },
+          data: { ...saleData(input, totals), version: { increment: 1 } },
         });
-        if (!changed.count) return null;
+        if (!changed.count) {
+          const existing = await tx.sale.findFirst({ where: { id, businessId }, select: { status: true } });
+          if (existing && expectedVersion)
+            throw new AppError(409, 'RECORD_CHANGED', existing.status === 'DRAFT' ? 'This sale draft was changed on another device.' : 'This sale can no longer be edited because it has already been posted.');
+          return null;
+        }
         await tx.saleLine.deleteMany({ where: { saleId: id, businessId } });
         await tx.saleLine.createMany({
           data: lineData(businessId, totals).map((line) => ({ ...line, saleId: id })),

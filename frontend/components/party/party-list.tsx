@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { Plus, RotateCcw } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -10,8 +11,25 @@ import {
   StatusBadge,
 } from '@/components/ui/primitives';
 import type { PartyKind, PartySummary } from '@/lib/api/parties';
+import { usePendingEntities } from '@/lib/offline/use-pending-entities';
+const asText = (value: unknown, fallback = '') =>
+  typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 export function PartyList({ kind, rows }: { kind: PartyKind; rows: PartySummary[] }) {
   const label = kind === 'customer' ? 'Customer' : 'Supplier';
+  const pending = usePendingEntities(kind === 'customer' ? 'CUSTOMER' : 'SUPPLIER');
+  const localRows: PartySummary[] = pending.map((item) => ({
+    id: item.serverId ?? item.localId,
+    name: asText(item.payload.name, 'Offline record'),
+    code: asText(item.payload.customerCode ?? item.payload.supplierCode, 'Assigned after sync'),
+    phone: asText(item.payload.phone),
+    company: asText(item.payload.companyName),
+    type: kind === 'customer' ? asText(item.payload.customerType, 'RETAIL') : null,
+    contactPerson: kind === 'supplier' ? asText(item.payload.contactPerson) : null,
+    district: asText(item.payload.district),
+    isActive: item.payload.isActive !== false,
+    updatedAt: item.syncStatus === 'CONFLICT' ? 'Needs review' : item.syncStatus === 'SYNCED' ? 'Synced' : 'Waiting to sync',
+  }));
+  const effectiveRows = [...rows.filter((row) => !localRows.some((local) => local.id === row.id)), ...localRows];
   const columns: Column<PartySummary>[] = [
     {
       key: 'name',
@@ -82,8 +100,8 @@ export function PartyList({ kind, rows }: { kind: PartyKind; rows: PartySummary[
           Reset
         </Button>
       </FilterBar>
-      {rows.length ? (
-        <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} />
+      {effectiveRows.length ? (
+        <DataTable rows={effectiveRows} columns={columns} rowKey={(row) => row.id} />
       ) : (
         <EmptyState
           title={'No ' + label.toLowerCase() + 's yet'}

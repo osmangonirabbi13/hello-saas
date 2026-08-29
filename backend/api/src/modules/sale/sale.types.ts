@@ -1,4 +1,5 @@
 import type { Prisma } from '@hello-shop/database';
+import type { MutationIdentity } from '../sync/mutation-idempotency.js';
 
 export type SaleLineInput = {
   productId: string;
@@ -92,12 +93,14 @@ export interface SaleRepositoryContract {
     userId: string,
     input: SaleInput,
     totals: SaleTotals,
+    identity?: MutationIdentity,
   ): Promise<object>;
   updateDraft(
     businessId: string,
     id: string,
     input: SaleInput,
     totals: SaleTotals,
+    expectedVersion?: number,
   ): Promise<object | null>;
   find(businessId: string, id: string): Promise<PostingSale | null>;
   list(businessId: string, query: Record<string, unknown>): Promise<object>;

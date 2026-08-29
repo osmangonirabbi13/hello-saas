@@ -9,6 +9,7 @@ import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupProductBarcode } from '@/lib/api/scanner-lookups';
 import { applyProductScan } from '@/lib/transaction-scanner';
 import { SerialEntry } from '@/components/scanner/serial-entry';
+import { saveOfflineCapable } from '@/lib/offline/save';
 type Line = {
   productId: string;
   quantity: number;
@@ -118,9 +119,37 @@ export function PurchaseForm({
       })();
     },
   });
-  const validate = handleSubmit(() => {
+  const validate = handleSubmit(async (draft) => {
+    setMessage('Saving…');
+    const payload = {
+      supplierId: draft.supplierId,
+      warehouseId: draft.warehouseId,
+      purchaseDate: draft.purchaseDate,
+      dueDate: draft.dueDate || null,
+      supplierInvoiceNumber: draft.supplierInvoice || null,
+      reference: draft.reference || null,
+      discountAmount: String(draft.discount),
+      additionalCost: String(draft.additionalCost),
+      taxAmount: String(draft.tax),
+      paidAmount: String(draft.paid),
+      note: null,
+      lines: draft.lines.map((line) => ({
+        productId: line.productId,
+        quantity: String(line.quantity),
+        unitCost: String(line.unitCost),
+        discountAmount: String(line.discount),
+        taxAmount: String(line.tax),
+        warrantyDuration: null,
+        warrantyUnit: null,
+        serialNumbers: line.serials.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean),
+      })),
+    };
     setMessage(
-      'Validated in the frontend adapter. The API remains authoritative for persistence and totals.',
+      await saveOfflineCapable({
+        entityType: 'PURCHASE_DRAFT',
+        ...(purchase ? { serverId: purchase.id, baseVersion: 1 } : {}),
+        payload,
+      }),
     );
   });
   return (
@@ -144,9 +173,7 @@ export function PurchaseForm({
               title="Post this purchase?"
               description="Posting will add inventory and cannot be freely edited afterward."
               trigger={<Button type="button">Post Purchase</Button>}
-              onConfirm={() =>
-                setMessage('Posting is available through the authenticated Purchase API.')
-              }
+              onConfirm={() => setMessage(navigator.onLine ? 'Posting is available through the authenticated Purchase API.' : 'Internet connection required to post this purchase.')}
             />
           </>
         }

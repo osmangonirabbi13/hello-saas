@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import { success } from '../../lib/response.js';
 import type { ProductService } from './product.service.js';
 import type { ProductInput } from './product.types.js';
+import { expectedVersion, mutationIdentity } from '../sync/mutation-idempotency.js';
 export function productController(service: ProductService) {
   const list: RequestHandler = (req, res, next) => {
     void service
@@ -18,7 +19,7 @@ export function productController(service: ProductService) {
   };
   const create: RequestHandler = (req, res, next) => {
     void service
-      .create(req.tenant!.businessId, req.auth!.id, req.body as ProductInput)
+      .create(req.tenant!.businessId, req.auth!.id, req.body as ProductInput, mutationIdentity(req.headers['idempotency-key'], 'PRODUCT_CREATE'))
       .then((result) => success(res, result, 201))
       .catch(next);
   };
@@ -30,7 +31,7 @@ export function productController(service: ProductService) {
   };
   const update: RequestHandler = (req, res, next) => {
     void service
-      .update(req.tenant!.businessId, String(req.params.id), req.body as Partial<ProductInput>)
+      .update(req.tenant!.businessId, String(req.params.id), req.body as Partial<ProductInput>, expectedVersion(req.headers['if-match']))
       .then((result) => success(res, result))
       .catch(next);
   };

@@ -1,5 +1,7 @@
 import { prisma, type Prisma } from '@hello-shop/database';
+import { AppError } from '../../common/errors/app-error.js';
 import type { ProductInput, ProductRepositoryContract } from './product.types.js';
+import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 
 export class ProductRepository implements ProductRepositoryContract {
   async masters(businessId: string, input: ProductInput) {
@@ -41,13 +43,31 @@ export class ProductRepository implements ProductRepositoryContract {
     );
   }
 
-  create(businessId: string, userId: string, input: ProductInput) {
+  create(businessId: string, userId: string, input: ProductInput, identity?: MutationIdentity) {
     const data = Object.fromEntries(
       Object.entries({ ...input, businessId, createdById: userId }).filter(
         ([, value]) => value !== undefined,
       ),
     ) as unknown as Prisma.ProductUncheckedCreateInput;
-    return prisma.product.create({ data });
+    return executeIdempotent({
+      businessId, userId, identity, payload: input,
+      execute: async (tx) => {
+        const duplicate = await tx.product.findFirst({
+          where: {
+            businessId,
+            OR: [{ sku: input.sku }, ...(input.barcode ? [{ barcode: input.barcode }] : [])],
+          },
+          select: { id: true },
+        });
+        if (duplicate)
+          throw new AppError(
+            409,
+            'DUPLICATE_PRODUCT_IDENTIFIER',
+            'SKU or barcode already exists.',
+          );
+        return tx.product.create({ data });
+      },
+    });
   }
 
   async list(businessId: string, query: Record<string, unknown>) {
@@ -93,11 +113,16 @@ export class ProductRepository implements ProductRepositoryContract {
     });
   }
 
-  async update(businessId: string, id: string, input: Partial<ProductInput>) {
+  async update(businessId: string, id: string, input: Partial<ProductInput>, expectedVersion?: number) {
     const data = Object.fromEntries(
       Object.entries(input).filter(([, value]) => value !== undefined),
     ) as Prisma.ProductUncheckedUpdateManyInput;
-    const result = await prisma.product.updateMany({ where: { id, businessId }, data });
+    const result = await prisma.product.updateMany({
+      where: { id, businessId, ...(expectedVersion ? { version: expectedVersion } : {}) },
+      data: { ...data, version: { increment: 1 } },
+    });
+    if (!result.count && expectedVersion && (await this.find(businessId, id)))
+      throw new AppError(409, 'RECORD_CHANGED', 'This product was changed on another device.');
     return result.count ? this.find(businessId, id) : null;
   }
 

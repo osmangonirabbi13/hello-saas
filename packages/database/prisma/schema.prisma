@@ -270,6 +270,7 @@ model Product {
   createdById        String
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
+  version            Int                   @default(1)
   business           Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
   category           Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   subCategory        SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
@@ -446,6 +447,7 @@ model Purchase {
   cancelledAt           DateTime?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
+  version               Int            @default(1)
   business              Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
   supplier              Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   warehouse             Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
@@ -520,6 +522,7 @@ model Sale {
   cancelledAt      DateTime?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
+  version          Int        @default(1)
   business         Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
   customer         Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
   warehouse        Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
@@ -602,6 +605,7 @@ model Customer {
   createdById    String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  version        Int          @default(1)
   business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
   createdBy      User         @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
@@ -639,6 +643,7 @@ model Supplier {
   createdById    String
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+  version        Int        @default(1)
   business       Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
   createdBy      User       @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: Restrict)
   purchases      Purchase[]
@@ -648,6 +653,24 @@ model Supplier {
   @@index([businessId, name])
   @@index([businessId, phone])
   @@index([businessId, isActive])
+}
+
+model MutationIdempotency {
+  id             String   @id @default(cuid())
+  businessId     String
+  userId         String
+  operationId    String
+  operationScope String
+  requestHash    String
+  status         String
+  resourceId     String?
+  responseData   Json?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  @@unique([businessId, operationId, operationScope])
+  @@index([businessId, createdAt])
+  @@index([businessId, status])
 }
 
 model BusinessMembership {

@@ -12,6 +12,7 @@ import {
   SyncOutboxRepository,
 } from './repositories';
 import { SyncEngine, SyncFailure } from './sync-engine';
+import { OfflineWorkflowRepository } from './workflows';
 
 const databases: HelloShopOfflineDb[] = [];
 function setup() {
@@ -155,5 +156,73 @@ describe('offline policy and deterministic connectivity', () => {
     expect(connectionTransition(false)).toBe('OFFLINE');
     expect(connectionTransition(true, true)).toBe('ONLINE');
     expect(connectionTransition(true, false)).toBe('API_UNREACHABLE');
+  });
+});
+
+describe('actual offline workflow composition', () => {
+  it('atomically saves a Product create, exposes it locally, then deduplicates its server mapping', async () => {
+    const { db } = setup();
+    const workflow = new OfflineWorkflowRepository(db);
+    const saved = await workflow.saveCreate(scopeA, 'PRODUCT', { name: 'Offline mouse' });
+    expect(await db.syncOutbox.get(saved.operation.operationId)).toMatchObject({
+      localEntityId: saved.entity.localId,
+      status: 'PENDING',
+    });
+    expect((await workflow.effectiveList(scopeA, 'PRODUCT'))[0]?.payload.name).toBe('Offline mouse');
+    await db.localEntities.put({
+      ...saved.entity,
+      serverId: 'product-server',
+      payload: { name: 'Authoritative mouse', id: 'product-server' },
+    });
+    const effective = await workflow.effectiveList(scopeA, 'PRODUCT', [{
+      ...scopeA,
+      localId: 'cache-product-server',
+      serverId: 'product-server',
+      entityType: 'PRODUCT',
+      payload: { name: 'Server duplicate' },
+      updatedAt: new Date().toISOString(),
+    }]);
+    expect(effective).toHaveLength(1);
+    expect(effective[0]?.payload.name).toBe('Authoritative mouse');
+  });
+
+  it('orders a local Supplier before its dependent Purchase Draft', async () => {
+    const { db } = setup();
+    const workflow = new OfflineWorkflowRepository(db);
+    const supplier = await workflow.saveCreate(scopeA, 'SUPPLIER', { name: 'Local supplier' });
+    const purchase = await workflow.saveCreate(scopeA, 'PURCHASE_DRAFT', {
+      supplierId: supplier.entity.localId,
+      lines: [],
+    });
+    expect(purchase.operation.dependsOnOperationIds).toEqual([supplier.operation.operationId]);
+  });
+
+  it('keeps tenant partitions isolated and safely discards a conflicted create', async () => {
+    const { db } = setup();
+    const workflow = new OfflineWorkflowRepository(db);
+    const saved = await workflow.saveCreate(scopeA, 'CUSTOMER', { name: 'Rahim' });
+    expect(await workflow.discard(scopeB, saved.operation.operationId)).toBe(false);
+    expect(await workflow.discard(scopeA, saved.operation.operationId)).toBe(true);
+    expect(await db.localEntities.get(saved.entity.localId)).toBeUndefined();
+  });
+
+  it('records stale update conflicts without retrying them endlessly', async () => {
+    const { db, outbox, conflicts, mappings, entities } = setup();
+    const update = await new OfflineWorkflowRepository(db).saveUpdate(
+      scopeA,
+      'PRODUCT',
+      'local-product',
+      'server-product',
+      { sku: 'TAKEN' },
+      3,
+    );
+    const adapter = vi.fn(async () => {
+      throw new SyncFailure('RECORD_CHANGED', 'CONFLICT', 'Changed elsewhere', 'RECORD_CHANGED');
+    });
+    const engine = new SyncEngine(outbox, conflicts, mappings, adapter, entities);
+    await engine.sync(scopeA);
+    await engine.sync(scopeA);
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect((await outbox.get(update.operation.operationId))?.status).toBe('CONFLICT');
   });
 });

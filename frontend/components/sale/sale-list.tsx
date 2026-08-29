@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { Plus, ShoppingCart } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -10,6 +11,9 @@ import {
   StatusBadge,
 } from '@/components/ui/primitives';
 import type { SaleSummary } from '@/lib/api/sales';
+import { usePendingEntities } from '@/lib/offline/use-pending-entities';
+const asText = (value: unknown, fallback = '') =>
+  typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 
 const columns: Column<SaleSummary>[] = [
   {
@@ -86,6 +90,12 @@ const columns: Column<SaleSummary>[] = [
 ];
 
 export function SaleList({ rows }: { rows: SaleSummary[] }) {
+  const local = usePendingEntities('SALE_DRAFT').map((item): SaleSummary => {
+    const lines = Array.isArray(item.payload.lines) ? item.payload.lines as Array<Record<string, unknown>> : [];
+    const total = lines.reduce((sum, line) => sum + Number(line.quantity ?? 0) * Number(line.unitPrice ?? 0), 0);
+    return { id: item.serverId ?? item.localId, saleNumber: asText(item.payload.saleNumber, 'Offline draft'), invoiceNumber: asText(item.payload.invoiceNumber, 'Assigned after sync'), date: asText(item.payload.saleDate), customer: asText(item.payload.customerName, 'Walk-in / pending customer'), type: (item.payload.type === 'VAT' ? 'VAT' : 'REGULAR'), warehouse: asText(item.payload.warehouseName, 'Cached warehouse'), total, paid: Number(item.payload.paidAmount ?? 0), due: Math.max(0, total - Number(item.payload.paidAmount ?? 0)), status: 'DRAFT', createdBy: item.syncStatus === 'CONFLICT' ? 'Needs review' : item.syncStatus === 'SYNCED' ? 'Synced' : 'Waiting to sync', paymentState: Number(item.payload.paidAmount ?? 0) ? 'PARTIALLY_PAID' : 'UNPAID' };
+  });
+  const effectiveRows = [...rows.filter((row) => !local.some((item) => item.id === row.id)), ...local];
   return (
     <div className="space-y-5">
       <PageHeader
@@ -125,7 +135,7 @@ export function SaleList({ rows }: { rows: SaleSummary[] }) {
           <option>All payments</option>
         </select>
       </FilterBar>
-      <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} />
+      <DataTable rows={effectiveRows} columns={columns} rowKey={(row) => row.id} />
     </div>
   );
 }

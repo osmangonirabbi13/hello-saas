@@ -1,5 +1,6 @@
 import { AppError } from '../../common/errors/app-error.js';
 import type { InventoryService } from '../inventory/inventory.service.js';
+import { replayIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 import type { PostingSale, SaleInput, SaleRepositoryContract, SaleTotals } from './sale.types.js';
 
 const minorUnits = (value: string) => {
@@ -121,13 +122,18 @@ export class SaleService {
     }
   }
 
-  async create(businessId: string, userId: string, input: SaleInput) {
+  async create(businessId: string, userId: string, input: SaleInput, identity?: MutationIdentity) {
+    const replay = await replayIdempotent<object>(businessId, identity, input);
+    if (replay) return replay;
     await this.validate(businessId, input);
-    return this.repository.createDraft(businessId, userId, input, calculateSale(input));
+    const totals = calculateSale(input);
+    return identity
+      ? this.repository.createDraft(businessId, userId, input, totals, identity)
+      : this.repository.createDraft(businessId, userId, input, totals);
   }
-  async update(businessId: string, id: string, input: SaleInput) {
+  async update(businessId: string, id: string, input: SaleInput, version?: number) {
     await this.validate(businessId, input);
-    const sale = await this.repository.updateDraft(businessId, id, input, calculateSale(input));
+    const sale = await this.repository.updateDraft(businessId, id, input, calculateSale(input), version);
     if (!sale)
       throw new AppError(409, 'SALE_NOT_EDITABLE', 'Only a tenant-owned draft sale can be edited.');
     return sale;

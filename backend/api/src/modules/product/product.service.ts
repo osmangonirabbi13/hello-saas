@@ -1,8 +1,11 @@
 import { AppError } from '../../common/errors/app-error.js';
 import type { ProductInput, ProductRepositoryContract } from './product.types.js';
+import { replayIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 export class ProductService {
   constructor(private readonly repository: ProductRepositoryContract) {}
-  async create(businessId: string, userId: string, input: ProductInput) {
+  async create(businessId: string, userId: string, input: ProductInput, identity?: MutationIdentity) {
+    const replay = await replayIdempotent<object>(businessId, identity, input);
+    if (replay) return replay;
     const masters = await this.repository.masters(businessId, input);
     if (!masters.valid)
       throw new AppError(
@@ -10,9 +13,11 @@ export class ProductService {
         'INVALID_MASTER_RELATION',
         masters.reason ?? 'Invalid product master.',
       );
-    if (await this.repository.duplicate(businessId, input.sku, input.barcode))
+    if (!identity && (await this.repository.duplicate(businessId, input.sku, input.barcode)))
       throw new AppError(409, 'DUPLICATE_PRODUCT_IDENTIFIER', 'SKU or barcode already exists.');
-    return this.repository.create(businessId, userId, input);
+    return identity
+      ? this.repository.create(businessId, userId, input, identity)
+      : this.repository.create(businessId, userId, input);
   }
   list(businessId: string, query: Record<string, unknown>) {
     return this.repository.list(businessId, query);
@@ -29,8 +34,8 @@ export class ProductService {
     if (!item) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product was not found.');
     return item;
   }
-  async update(businessId: string, id: string, input: Partial<ProductInput>) {
-    const item = await this.repository.update(businessId, id, input);
+  async update(businessId: string, id: string, input: Partial<ProductInput>, version?: number) {
+    const item = await this.repository.update(businessId, id, input, version);
     if (!item) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product was not found.');
     return item;
   }

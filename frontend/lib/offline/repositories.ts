@@ -22,6 +22,12 @@ export class LocalEntityRepository {
       .equals([scope.userId, scope.businessRef])
       .toArray();
   }
+  get(localId: string) {
+    return this.db.localEntities.get(localId);
+  }
+  remove(localId: string) {
+    return this.db.localEntities.delete(localId);
+  }
 }
 export class SyncOutboxRepository {
   constructor(private db: HelloShopOfflineDb) {}
@@ -48,6 +54,24 @@ export class SyncOutboxRepository {
     };
     await this.db.syncOutbox.update(id, update);
   }
+  get(id: string) {
+    return this.db.syncOutbox.get(id);
+  }
+  remove(id: string) {
+    return this.db.syncOutbox.delete(id);
+  }
+  async resetForRetry(id: string) {
+    const operation = await this.db.syncOutbox.get(id);
+    if (!operation) return;
+    const { lastErrorCode: _lastErrorCode, ...clean } = operation;
+    void _lastErrorCode;
+    await this.db.syncOutbox.put({
+      ...clean,
+      status: 'PENDING',
+      retryCount: 0,
+      updatedAt: new Date().toISOString(),
+    });
+  }
   async retry(id: string, code: string) {
     const row = await this.db.syncOutbox.get(id);
     if (row)
@@ -69,6 +93,9 @@ export class ConflictRepository {
       .where('[userId+businessRef]')
       .equals([scope.userId, scope.businessRef])
       .toArray();
+  }
+  async removeForOperation(operationId: string) {
+    await this.db.syncConflicts.where('operationId').equals(operationId).delete();
   }
 }
 export class IdMappingRepository {

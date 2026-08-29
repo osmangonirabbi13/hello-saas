@@ -6,6 +6,7 @@ import type {
   PurchaseTotals,
   PostingPurchase,
 } from './purchase.types.js';
+import { replayIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 const cents = (value: string) => {
   const [whole, fraction = ''] = value.split('.');
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
@@ -94,13 +95,18 @@ export class PurchaseService {
     if ((await this.repository.serialConflicts(businessId, serials)).length)
       throw new AppError(409, 'DUPLICATE_SERIAL', 'A serial already exists for this business.');
   }
-  async create(businessId: string, userId: string, input: PurchaseInput) {
+  async create(businessId: string, userId: string, input: PurchaseInput, identity?: MutationIdentity) {
+    const replay = await replayIdempotent<object>(businessId, identity, input);
+    if (replay) return replay;
     await this.validate(businessId, input);
-    return this.repository.createDraft(businessId, userId, input, calculatePurchase(input));
+    const totals = calculatePurchase(input);
+    return identity
+      ? this.repository.createDraft(businessId, userId, input, totals, identity)
+      : this.repository.createDraft(businessId, userId, input, totals);
   }
-  async update(businessId: string, id: string, input: PurchaseInput) {
+  async update(businessId: string, id: string, input: PurchaseInput, version?: number) {
     await this.validate(businessId, input);
-    const item = await this.repository.updateDraft(businessId, id, input, calculatePurchase(input));
+    const item = await this.repository.updateDraft(businessId, id, input, calculatePurchase(input), version);
     if (!item)
       throw new AppError(
         409,

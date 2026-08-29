@@ -1,6 +1,7 @@
 import { prisma } from '@hello-shop/database';
 import type { Prisma, PurchaseStatus } from '@hello-shop/database';
 import { AppError } from '../../common/errors/app-error.js';
+import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 import type {
   InventoryPoster,
   PurchaseInput,
@@ -68,9 +69,10 @@ export class PurchaseRepository implements PurchaseRepositoryContract {
     });
     return rows.map((row) => row.serialNumber);
   }
-  createDraft(businessId: string, userId: string, input: PurchaseInput, totals: PurchaseTotals) {
-    return prisma.$transaction(
-      async (tx) => {
+  createDraft(businessId: string, userId: string, input: PurchaseInput, totals: PurchaseTotals, identity?: MutationIdentity) {
+    return executeIdempotent({
+      businessId, userId, identity, payload: input,
+      execute: async (tx) => {
         const sequence = await tx.businessSequence.upsert({
           where: { businessId_key: { businessId, key: 'PURCHASE' } },
           create: { businessId, key: 'PURCHASE', nextValue: 2 },
@@ -112,13 +114,12 @@ export class PurchaseRepository implements PurchaseRepositoryContract {
         });
         return purchase;
       },
-      { isolationLevel: 'Serializable' },
-    );
+    });
   }
-  updateDraft(businessId: string, id: string, input: PurchaseInput, totals: PurchaseTotals) {
+  updateDraft(businessId: string, id: string, input: PurchaseInput, totals: PurchaseTotals, expectedVersion?: number) {
     return prisma.$transaction(async (tx) => {
       const changed = await tx.purchase.updateMany({
-        where: { id, businessId, status: 'DRAFT' },
+        where: { id, businessId, status: 'DRAFT', ...(expectedVersion ? { version: expectedVersion } : {}) },
         data: {
           supplierId: input.supplierId,
           warehouseId: input.warehouseId,
@@ -134,9 +135,15 @@ export class PurchaseRepository implements PurchaseRepositoryContract {
           paidAmount: totals.paidAmount,
           dueAmount: totals.dueAmount,
           note: input.note ?? null,
+          version: { increment: 1 },
         },
       });
-      if (!changed.count) return null;
+      if (!changed.count) {
+        const existing = await tx.purchase.findFirst({ where: { id, businessId }, select: { status: true } });
+        if (existing && expectedVersion)
+          throw new AppError(409, 'RECORD_CHANGED', existing.status === 'DRAFT' ? 'This purchase draft was changed on another device.' : 'This purchase can no longer be edited because it has already been posted.');
+        return null;
+      }
       await tx.purchaseLine.deleteMany({ where: { purchaseId: id } });
       await tx.purchaseLine.createMany({
         data: lineData(businessId, totals.lines).map((line) => ({ ...line, purchaseId: id })),

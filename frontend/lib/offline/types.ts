@@ -45,6 +45,8 @@ export type SyncConflict = LocalPartition & {
   operationId: string;
   type: ConflictType;
   message: string;
+  localPayload?: Record<string, unknown>;
+  serverPayload?: Record<string, unknown>;
   createdAt: string;
 };
 export type IdMapping = LocalPartition & {
@@ -53,6 +55,13 @@ export type IdMapping = LocalPartition & {
   serverId: string;
   entityType: EntityType;
 };
+export type SnapshotMeta = LocalPartition & {
+  key: string;
+  entityType: EntityType;
+  lastFetchedAt: string;
+  lastSyncedAt?: string;
+  recordCount: number;
+};
 export const partitionKey = ({ userId, businessRef }: LocalPartition) =>
   `${userId}::${businessRef}`;
 export function assertSafeOfflinePayload(payload: Record<string, unknown>) {
@@ -60,3 +69,7 @@ export function assertSafeOfflinePayload(payload: Record<string, unknown>) {
   if (Object.keys(payload).some((key) => forbidden.test(key)))
     throw new Error('Sensitive authentication data cannot be stored offline.');
 }
+
+export type EffectiveEntity = LocalEntity & {
+  syncStatus?: SyncStatus;
+};

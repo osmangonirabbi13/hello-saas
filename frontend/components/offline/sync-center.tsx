@@ -10,7 +10,8 @@ import {
 } from '@/lib/offline/connectivity';
 import { getOfflineDb } from '@/lib/offline/db';
 import { ConflictRepository, SyncOutboxRepository } from '@/lib/offline/repositories';
-import type { LocalPartition, OutboxOperation } from '@/lib/offline/types';
+import type { LocalPartition, OutboxOperation, SyncConflict } from '@/lib/offline/types';
+import { OfflineWorkflowRepository } from '@/lib/offline/workflows';
 
 export function SyncCenter({
   scope,
@@ -21,13 +22,13 @@ export function SyncCenter({
 }) {
   const [connection, setConnection] = useState<ConnectionState>('ONLINE');
   const [operations, setOperations] = useState<OutboxOperation[]>([]);
-  const [conflicts, setConflicts] = useState(0);
+  const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string>();
   const refresh = useCallback(async () => {
     const db = getOfflineDb();
     setOperations(await new SyncOutboxRepository(db).list(scope));
-    setConflicts((await new ConflictRepository(db).list(scope)).length);
+    setConflicts(await new ConflictRepository(db).list(scope));
   }, [scope]);
   useEffect(() => {
     const update = (attemptSync = false) => {
@@ -54,6 +55,7 @@ export function SyncCenter({
     (item) => item.status === 'PENDING' || item.status === 'FAILED',
   ).length;
   const failed = operations.filter((item) => item.status === 'FAILED').length;
+  const conflictByOperation = new Map(conflicts.map((item) => [item.operationId, item]));
   async function sync() {
     if (syncing || connection !== 'ONLINE') return;
     setSyncing(true);
@@ -107,7 +109,7 @@ export function SyncCenter({
             <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
               <Metric label="Pending" value={pending} />
               <Metric label="Failed" value={failed} />
-              <Metric label="Conflicts" value={conflicts} />
+              <Metric label="Conflicts" value={conflicts.length} />
             </dl>
             <p className="mt-4 text-xs text-slate-500">
               Last synced: {lastSynced ?? 'Not in this session'}
@@ -125,10 +127,28 @@ export function SyncCenter({
                     .slice(0, 20)
                     .map((item) => (
                       <li className="rounded-lg border p-3 text-sm" key={item.operationId}>
-                        <b>{item.entityType.replaceAll('_', ' ')}</b>
+                        <b>{entityLabel(item)}</b>
                         <span className="block text-xs text-slate-500">
                           {item.status === 'CONFLICT' ? 'Needs review' : 'Waiting to sync'}
                         </span>
+                        {conflictByOperation.get(item.operationId) && (
+                          <p className="mt-2 text-xs text-rose-700">{conflictByOperation.get(item.operationId)?.message}</p>
+                        )}
+                        {item.status === 'CONFLICT' && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <a className="rounded-md border px-3 py-2 text-xs font-semibold" href={reviewHref(item)}>Review local change</a>
+                            <button className="rounded-md border px-3 py-2 text-xs font-semibold" type="button" onClick={() => void (async () => {
+                              const db = getOfflineDb();
+                              await new ConflictRepository(db).removeForOperation(item.operationId);
+                              await new SyncOutboxRepository(db).resetForRetry(item.operationId);
+                              await refresh();
+                            })()}>Retry after correction</button>
+                            <button className="rounded-md border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700" type="button" onClick={() => void (async () => {
+                              await new OfflineWorkflowRepository(getOfflineDb()).discard(scope, item.operationId);
+                              await refresh();
+                            })()}>Discard local change</button>
+                          </div>
+                        )}
                       </li>
                     ))}
                 </ul>
@@ -157,6 +177,25 @@ export function SyncCenter({
       )}
     </>
   );
+}
+function reviewHref(operation: OutboxOperation) {
+  const root =
+    operation.entityType === 'PRODUCT'
+      ? 'products'
+      : operation.entityType === 'CUSTOMER'
+        ? 'customers'
+        : operation.entityType === 'SUPPLIER'
+          ? 'suppliers'
+          : operation.entityType === 'PURCHASE_DRAFT'
+            ? 'purchases'
+            : 'sales';
+  return `/${root}/${operation.serverEntityId ?? operation.localEntityId}/edit`;
+}
+function entityLabel(operation: OutboxOperation) {
+  const value = operation.payload.name ?? operation.payload.purchaseNumber ?? operation.payload.saleNumber;
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : operation.entityType.replaceAll('_', ' ');
 }
 function Metric({ label, value }: { label: string; value: number }) {
   return (

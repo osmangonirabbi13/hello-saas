@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import { success } from '../../lib/response.js';
 import type { PurchaseService } from './purchase.service.js';
 import type { PurchaseInput } from './purchase.types.js';
+import { expectedVersion, mutationIdentity } from '../sync/mutation-idempotency.js';
 export function purchaseController(service: PurchaseService) {
   const list: RequestHandler = (req, res, next) => {
     void service
@@ -11,7 +12,7 @@ export function purchaseController(service: PurchaseService) {
   };
   const create: RequestHandler = (req, res, next) => {
     void service
-      .create(req.tenant!.businessId, req.auth!.id, req.body as PurchaseInput)
+      .create(req.tenant!.businessId, req.auth!.id, req.body as PurchaseInput, mutationIdentity(req.headers['idempotency-key'], 'PURCHASE_DRAFT_CREATE'))
       .then((data) => success(res, data, 201))
       .catch(next);
   };
@@ -23,7 +24,7 @@ export function purchaseController(service: PurchaseService) {
   };
   const update: RequestHandler = (req, res, next) => {
     void service
-      .update(req.tenant!.businessId, String(req.params.id), req.body as PurchaseInput)
+      .update(req.tenant!.businessId, String(req.params.id), req.body as PurchaseInput, expectedVersion(req.headers['if-match']))
       .then((data) => success(res, data))
       .catch(next);
   };

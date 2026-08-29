@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button, FormSection, PageHeader } from '@/components/ui/primitives';
 import type { PartyKind, PartySummary } from '@/lib/api/parties';
+import { saveOfflineCapable } from '@/lib/offline/save';
 const schema = z.object({
   name: z.string().trim().min(2, 'Name is required.'),
   companyName: z.string(),
@@ -27,6 +29,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 const control = 'mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm';
 export function PartyForm({ kind, party }: { kind: PartyKind; party?: PartySummary }) {
+  const [saveState, setSaveState] = useState('');
   const label = kind === 'customer' ? 'Customer' : 'Supplier';
   const {
     register,
@@ -55,12 +58,32 @@ export function PartyForm({ kind, party }: { kind: PartyKind; party?: PartySumma
       isActive: party?.isActive ?? true,
     },
   });
-  const submit = handleSubmit((values) => {
+  const submit = handleSubmit(async (values) => {
     const result = schema.safeParse(values);
-    if (!result.success)
+    if (!result.success) {
       result.error.issues.forEach((issue) =>
         setError(issue.path[0] as keyof Values, { message: issue.message }),
       );
+      return;
+    }
+    setSaveState('Saving…');
+    const clean: Record<string, unknown> = Object.fromEntries(
+      Object.entries(result.data).map(([key, value]) => [
+        key,
+        value === '' ? null : key === 'creditLimit' ? String(value) : value,
+      ]),
+    );
+    if (kind === 'supplier') {
+      delete clean.customerType;
+      delete clean.creditLimit;
+    } else delete clean.contactPerson;
+    setSaveState(
+      await saveOfflineCapable({
+        entityType: kind === 'customer' ? 'CUSTOMER' : 'SUPPLIER',
+        ...(party ? { serverId: party.id, baseVersion: 1 } : {}),
+        payload: clean,
+      }),
+    );
   });
   const field = (name: keyof Values, text: string, type = 'text') => (
     <label className="text-sm font-semibold text-slate-700">
@@ -71,6 +94,7 @@ export function PartyForm({ kind, party }: { kind: PartyKind; party?: PartySumma
         type={type}
         {...register(name, type === 'number' ? { valueAsNumber: true } : undefined)}
       />
+      {saveState && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800" role="status">{saveState}</p>}
       {errors[name] && <small className="block text-rose-600">{errors[name]?.message}</small>}
     </label>
   );

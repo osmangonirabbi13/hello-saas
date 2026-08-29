@@ -1,7 +1,7 @@
 import { createOperationId } from './ids';
-import type { ConflictRepository, IdMappingRepository, SyncOutboxRepository } from './repositories';
+import type { ConflictRepository, IdMappingRepository, LocalEntityRepository, SyncOutboxRepository } from './repositories';
 import type { ConflictType, LocalPartition, OutboxOperation } from './types';
-export type SyncResult = { serverId?: string };
+export type SyncResult = { serverId?: string; data?: Record<string, unknown> };
 export type SyncAdapter = (operation: OutboxOperation) => Promise<SyncResult>;
 export class SyncFailure extends Error {
   constructor(
@@ -20,6 +20,7 @@ export class SyncEngine {
     private conflicts: ConflictRepository,
     private mappings: IdMappingRepository,
     private adapter: SyncAdapter,
+    private entities?: LocalEntityRepository,
   ) {}
   sync(scope: LocalPartition) {
     if (this.running) return this.running;
@@ -46,6 +47,18 @@ export class SyncEngine {
             serverId: result.serverId,
             entityType: op.entityType,
           });
+        if (result.data && this.entities) {
+          const local = await this.entities.get(op.localEntityId);
+          if (local)
+            await this.entities.save({
+              ...local,
+              ...(result.serverId ?? local.serverId
+                ? { serverId: result.serverId ?? local.serverId }
+                : {}),
+              payload: result.data,
+              updatedAt: new Date().toISOString(),
+            });
+        }
         await this.outbox.setStatus(op.operationId, 'SYNCED');
         completed.add(op.operationId);
       } catch (reason) {

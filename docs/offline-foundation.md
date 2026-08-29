@@ -21,3 +21,7 @@ Offline-safe foundations: Product, Customer, Supplier and master-data changes; P
 ## Privacy and logout
 
 Unsynced data remains partitioned on logout so it can be resumed by the same user/business context. Another account cannot query that partition. Browser-local business data is not encrypted in Step 2; managed-device policy and optional vetted encryption-at-rest can be evaluated later. Custom cryptography is intentionally not introduced.
+
+## Step 3
+
+Actual approved workflows, idempotency, optimistic concurrency, dependencies, hydration, and conflict behavior are documented in [offline-workflows.md](./offline-workflows.md).

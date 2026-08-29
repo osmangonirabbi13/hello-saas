@@ -30,6 +30,8 @@ import {
 import { SyncCenter } from '@/components/offline/sync-center';
 import { getOfflineDb } from '@/lib/offline/db';
 import { SyncOutboxRepository } from '@/lib/offline/repositories';
+import { syncOfflineChanges } from '@/lib/offline/sync-runtime';
+import { hydrateOfflineReferences } from '@/lib/offline/hydration';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -81,14 +83,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [demoMode, router]);
   const items = useMemo(() => visibleNavigation(new Set(permissions)), [permissions]);
   const activeContext = context ?? DEMO_AUTHENTICATED_CONTEXT;
+  const offlineScope = { userId: activeContext.user.id, businessRef: activeContext.business.id };
+  useEffect(() => {
+    sessionStorage.setItem('hello_shop_offline_scope', JSON.stringify(offlineScope));
+    void hydrateOfflineReferences(offlineScope);
+  }, [offlineScope.businessRef, offlineScope.userId]);
   function toggleSidebar() {
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem('hello_shop_sidebar', next ? 'collapsed' : 'expanded');
   }
   async function logout() {
-    const scope = { userId: activeContext.user.id, businessRef: activeContext.business.id };
-    const unsynced = (await new SyncOutboxRepository(getOfflineDb()).pending(scope)).length;
+    const unsynced = (await new SyncOutboxRepository(getOfflineDb()).pending(offlineScope)).length;
     if (
       unsynced &&
       !window.confirm(
@@ -261,7 +267,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </label>
           <div className="ml-auto flex items-center gap-1.5">
             <SyncCenter
-              scope={{ userId: activeContext.user.id, businessRef: activeContext.business.id }}
+              scope={offlineScope}
+              onSync={() => syncOfflineChanges(offlineScope)}
             />
             <button className="top-icon" onClick={() => setDark(!dark)} aria-label="Toggle theme">
               {dark ? <Sun size={18} /> : <Moon size={18} />}

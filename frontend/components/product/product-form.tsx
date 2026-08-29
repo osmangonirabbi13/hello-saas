@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button, FormSection, PageHeader } from '@/components/ui/primitives';
 import type { ProductSummary } from '@/lib/api/product-master';
+import { saveOfflineCapable } from '@/lib/offline/save';
 
 const schema = z
   .object({
@@ -30,6 +32,7 @@ type Values = z.infer<typeof schema>;
 const input = 'mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm';
 
 export function ProductForm({ product }: { product?: ProductSummary }) {
+  const [saveState, setSaveState] = useState('');
   const {
     register,
     handleSubmit,
@@ -49,11 +52,32 @@ export function ProductForm({ product }: { product?: ProductSummary }) {
       warrantyEnabled: false,
     },
   });
-  const submit = handleSubmit((values) => {
+  const submit = handleSubmit(async (values) => {
     const result = schema.safeParse(values);
-    if (!result.success)
+    if (!result.success) {
       for (const issue of result.error.issues)
         setError(issue.path[0] as keyof Values, { message: issue.message });
+      return;
+    }
+    setSaveState('Saving…');
+    setSaveState(
+      await saveOfflineCapable({
+        entityType: 'PRODUCT',
+        ...(product ? { serverId: product.id, baseVersion: 1 } : {}),
+        payload: {
+          ...result.data,
+          slug: result.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+          purchasePrice: String(result.data.purchasePrice),
+          salePrice: String(result.data.salePrice),
+          minimumSalePrice: String(result.data.minimumSalePrice),
+          reorderLevel: '0',
+          allowNegativeStock: false,
+          warrantyDuration: null,
+          warrantyUnit: null,
+          isActive: true,
+        },
+      }),
+    );
   });
   const field = (name: keyof Values, label: string, type = 'text') => (
     <label className="text-sm font-semibold text-slate-700">
@@ -63,6 +87,7 @@ export function ProductForm({ product }: { product?: ProductSummary }) {
         type={type}
         {...register(name, type === 'number' ? { valueAsNumber: true } : undefined)}
       />
+      {saveState && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800" role="status">{saveState}</p>}
       {errors[name] && <small className="block text-rose-600">{errors[name]?.message}</small>}
     </label>
   );
