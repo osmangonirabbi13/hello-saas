@@ -11,6 +11,7 @@ import type {
 } from './sale.types.js';
 
 const include = {
+  business: { select: { id: true, name: true } },
   customer: true,
   warehouse: true,
   createdBy: { select: { id: true, displayName: true } },
@@ -124,9 +125,18 @@ export class SaleRepository implements SaleRepositoryContract {
     });
   }
 
-  createDraft(businessId: string, userId: string, input: SaleInput, totals: SaleTotals, identity?: MutationIdentity) {
+  createDraft(
+    businessId: string,
+    userId: string,
+    input: SaleInput,
+    totals: SaleTotals,
+    identity?: MutationIdentity,
+  ) {
     return executeIdempotent({
-      businessId, userId, identity, payload: input,
+      businessId,
+      userId,
+      identity,
+      payload: input,
       execute: async (tx) => {
         const [saleValue, invoiceValue] = await Promise.all([
           allocate(tx, businessId, 'SALE'),
@@ -160,17 +170,37 @@ export class SaleRepository implements SaleRepositoryContract {
     });
   }
 
-  updateDraft(businessId: string, id: string, input: SaleInput, totals: SaleTotals, expectedVersion?: number) {
+  updateDraft(
+    businessId: string,
+    id: string,
+    input: SaleInput,
+    totals: SaleTotals,
+    expectedVersion?: number,
+  ) {
     return prisma.$transaction(
       async (tx) => {
         const changed = await tx.sale.updateMany({
-          where: { id, businessId, status: 'DRAFT', ...(expectedVersion ? { version: expectedVersion } : {}) },
+          where: {
+            id,
+            businessId,
+            status: 'DRAFT',
+            ...(expectedVersion ? { version: expectedVersion } : {}),
+          },
           data: { ...saleData(input, totals), version: { increment: 1 } },
         });
         if (!changed.count) {
-          const existing = await tx.sale.findFirst({ where: { id, businessId }, select: { status: true } });
+          const existing = await tx.sale.findFirst({
+            where: { id, businessId },
+            select: { status: true },
+          });
           if (existing && expectedVersion)
-            throw new AppError(409, 'RECORD_CHANGED', existing.status === 'DRAFT' ? 'This sale draft was changed on another device.' : 'This sale can no longer be edited because it has already been posted.');
+            throw new AppError(
+              409,
+              'RECORD_CHANGED',
+              existing.status === 'DRAFT'
+                ? 'This sale draft was changed on another device.'
+                : 'This sale can no longer be edited because it has already been posted.',
+            );
           return null;
         }
         await tx.saleLine.deleteMany({ where: { saleId: id, businessId } });

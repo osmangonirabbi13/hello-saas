@@ -133,7 +133,13 @@ export class SaleService {
   }
   async update(businessId: string, id: string, input: SaleInput, version?: number) {
     await this.validate(businessId, input);
-    const sale = await this.repository.updateDraft(businessId, id, input, calculateSale(input), version);
+    const sale = await this.repository.updateDraft(
+      businessId,
+      id,
+      input,
+      calculateSale(input),
+      version,
+    );
     if (!sale)
       throw new AppError(409, 'SALE_NOT_EDITABLE', 'Only a tenant-owned draft sale can be edited.');
     return sale;
@@ -144,6 +150,16 @@ export class SaleService {
   async find(businessId: string, id: string) {
     const sale = await this.repository.find(businessId, id);
     if (!sale) throw new AppError(404, 'SALE_NOT_FOUND', 'Sale was not found.');
+    return sale;
+  }
+  async invoice(businessId: string, id: string) {
+    const sale = await this.find(businessId, id);
+    if (sale.status !== 'POSTED' || !('invoice' in sale) || !sale.invoice)
+      throw new AppError(
+        409,
+        'INVOICE_NOT_FINAL',
+        'A final invoice is available only after the sale has been posted.',
+      );
     return sale;
   }
   async post(businessId: string, id: string, userId: string) {

@@ -16,7 +16,12 @@ export function saleController(service: SaleService) {
     (req, res, next) => {
       const input = { ...(req.body as SaleInput), type };
       void service
-        .create(req.tenant!.businessId, req.auth!.id, input, mutationIdentity(req.headers['idempotency-key'], `SALE_DRAFT_${type}_CREATE`))
+        .create(
+          req.tenant!.businessId,
+          req.auth!.id,
+          input,
+          mutationIdentity(req.headers['idempotency-key'], `SALE_DRAFT_${type}_CREATE`),
+        )
         .then((data) => success(res, data, 201))
         .catch(next);
     };
@@ -26,9 +31,20 @@ export function saleController(service: SaleService) {
       .then((data) => success(res, data))
       .catch(next);
   };
+  const invoice: RequestHandler = (req, res, next) => {
+    void service
+      .invoice(req.tenant!.businessId, String(req.params.id))
+      .then((data) => success(res, data))
+      .catch(next);
+  };
   const update: RequestHandler = (req, res, next) => {
     void service
-      .update(req.tenant!.businessId, String(req.params.id), req.body as SaleInput, expectedVersion(req.headers['if-match']))
+      .update(
+        req.tenant!.businessId,
+        String(req.params.id),
+        req.body as SaleInput,
+        expectedVersion(req.headers['if-match']),
+      )
       .then((data) => success(res, data))
       .catch(next);
   };
@@ -50,6 +66,7 @@ export function saleController(service: SaleService) {
     createVat: createFor('VAT'),
     createPos: createFor('POS'),
     find,
+    invoice,
     update,
     post,
     remove,

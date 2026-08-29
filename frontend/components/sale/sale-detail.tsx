@@ -18,9 +18,14 @@ export function SaleDetail({ sale }: { sale: SaleSummary }) {
                 Edit Draft
               </Link>
             )}
-            <button className="rounded-lg border px-4 py-2 text-sm font-semibold" type="button">
-              Print placeholder
-            </button>
+            {sale.status === 'POSTED' && (
+              <Link
+                className="rounded-lg border px-4 py-2 text-sm font-semibold"
+                href={`/sales/${sale.id}/invoice`}
+              >
+                View / Print Invoice
+              </Link>
+            )}
           </>
         }
       />

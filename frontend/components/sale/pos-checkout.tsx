@@ -1,6 +1,6 @@
 'use client';
-import { useMemo, useState } from 'react';
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Barcode, Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, CurrencyDisplay, PageHeader } from '@/components/ui/primitives';
 import type { SaleCustomer, SaleProduct } from '@/lib/api/sales';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
@@ -21,6 +21,7 @@ export function PosCheckout({
   const [message, setMessage] = useState('');
   const [selectedSerials, setSelectedSerials] = useState<Record<string, string[]>>({});
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
+  const scannerInput = useRef<HTMLInputElement>(null);
   const filtered = useMemo(
     () =>
       products.filter((product) =>
@@ -57,6 +58,7 @@ export function PosCheckout({
     setCart((current) => ({ ...current, [product.id]: serials.length }));
     setPendingProductId(product.id);
     setQuery('');
+    scannerInput.current?.focus();
     setMessage(product.name + ': serial attached and added.');
   };
   const scanner = useBarcodeScanner({
@@ -104,7 +106,7 @@ export function PosCheckout({
     <div className="space-y-5">
       <PageHeader
         title="Fast POS"
-        description="A touch-friendly checkout over the same authenticated SaleService."
+        description="Scan products, manage your cart, and complete sales faster."
         actions={
           <Button
             variant="secondary"
@@ -122,16 +124,35 @@ export function PosCheckout({
       )}
       <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
         <section className="rounded-xl border bg-white p-4">
-          <label className="relative block">
-            <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-            <input
-              autoFocus
-              className="h-11 w-full rounded-lg border pl-10 pr-3"
-              placeholder="Scan barcode or search product / SKU"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={scanner.onKeyDown}
-            />
+          <label className="block">
+            <span className="flex items-center justify-between gap-3 text-sm font-bold text-slate-800">
+              <span className="inline-flex items-center gap-2">
+                <Barcode className="text-emerald-700" size={19} />
+                Scan Barcode
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                Scanner Ready
+              </span>
+            </span>
+            <span className="relative mt-2 block">
+              <Barcode
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700"
+                size={20}
+              />
+              <input
+                autoFocus
+                ref={scannerInput}
+                className="h-12 w-full rounded-lg border border-slate-300 pl-11 pr-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                placeholder="Scan barcode or search product / SKU"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={scanner.onKeyDown}
+              />
+            </span>
+            <span className="mt-1.5 block text-xs font-medium text-slate-500">
+              Press Enter after manual entry · USB/Bluetooth scanner ready
+            </span>
           </label>
           {pendingProduct && (
             <PosSerialPanel
@@ -152,7 +173,7 @@ export function PosCheckout({
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((product) => (
               <button
-                className="rounded-xl border p-4 text-left hover:border-emerald-500 hover:bg-emerald-50"
+                className="rounded-xl border border-slate-200 p-4 text-left transition-colors hover:border-emerald-500 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 key={product.id}
                 type="button"
                 onClick={() =>
@@ -162,10 +183,18 @@ export function PosCheckout({
                     : change(product.id, 1)
                 }
               >
-                <p className="font-semibold">{product.name}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {product.sku} · Stock {product.available}
-                </p>
+                <p className="font-bold text-slate-950">{product.name}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">SKU: {product.sku}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                    Stock {product.available}
+                  </span>
+                  {product.serialized && (
+                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+                      Serial / IMEI
+                    </span>
+                  )}
+                </div>
                 <p className="mt-3 font-bold text-emerald-700">
                   <CurrencyDisplay value={product.salePrice} />
                 </p>
@@ -180,9 +209,10 @@ export function PosCheckout({
           </div>
           <div className="mt-4 space-y-3">
             {rows.length === 0 && (
-              <p className="rounded-lg bg-slate-50 p-5 text-center text-sm text-slate-500">
-                Scan or select a product to begin.
-              </p>
+              <div className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500">
+                <ShoppingCart className="mx-auto mb-2 text-slate-400" size={28} />
+                <p>Scan a barcode or select a product to start a sale.</p>
+              </div>
             )}
             {rows.map((product) => (
               <div className="rounded-lg border p-3" key={product.id}>
@@ -280,7 +310,7 @@ export function PosCheckout({
           </dl>
           <ConfirmDialog
             title="Complete POS sale?"
-            description="Checkout uses SaleService, deducts inventory, and finalizes one invoice."
+            description="Review the cart and payment amount before completing this sale."
             trigger={
               <Button className="mt-5 w-full" disabled={!rows.length}>
                 Confirm Checkout
@@ -288,13 +318,10 @@ export function PosCheckout({
             }
             onConfirm={() =>
               setMessage(
-                'POS checkout is routed through the authenticated Sale API and shared posting flow.',
+                'Sale submitted. Your final invoice will be available after confirmation.',
               )
             }
           />
-          <p className="mt-3 text-center text-xs text-slate-400">
-            Hold, split payment, offline mode, and printer integration are deferred.
-          </p>
         </aside>
       </div>
     </div>

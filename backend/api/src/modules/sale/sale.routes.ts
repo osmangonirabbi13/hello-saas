@@ -42,6 +42,7 @@ export function createSaleRouter(auth: AuthService, authRepository: AuthReposito
     validateBody(saleCreateSchema),
     controller.createPos,
   );
+  router.get('/:id/invoice', requirePermission('sale.read'), controller.invoice);
   router.get('/:id', requirePermission('sale.read'), controller.find);
   router.patch(
     '/:id',

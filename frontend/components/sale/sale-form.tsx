@@ -225,7 +225,7 @@ export function SaleForm({
         title="Sale information"
         description={
           mode === 'VAT'
-            ? 'VAT mode uses the same SaleService and exposes tax controls.'
+            ? 'Create a tax-inclusive sale with clear VAT details.'
             : 'Walk-in sales do not require a customer record.'
         }
       >

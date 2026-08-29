@@ -125,6 +125,34 @@ describe('Sale validation, VAT, and arithmetic', () => {
 });
 
 describe('SaleService tenancy, inventory, serial, and lifecycle rules', () => {
+  it('returns only a posted sale with its persisted authoritative invoice', async () => {
+    const posted = {
+      id: 'sale-a',
+      status: 'POSTED',
+      invoiceNumber: 'INV-000001',
+      invoice: { id: 'invoice-a', invoiceNumber: 'INV-000001' },
+    } as unknown as PostingSale;
+    const result = await new SaleService(
+      saleRepo({ find: vi.fn().mockResolvedValue(posted) }),
+      new InventoryService(inventoryRepo()),
+    ).invoice('business-a', 'sale-a');
+    expect(result).toBe(posted);
+    expect(result.invoiceNumber).toBe('INV-000001');
+  });
+  it('does not expose a draft as a final invoice', async () => {
+    const draft = {
+      id: 'sale-a',
+      status: 'DRAFT',
+      invoiceNumber: 'INV-000001',
+      invoice: null,
+    } as unknown as PostingSale;
+    await expect(
+      new SaleService(
+        saleRepo({ find: vi.fn().mockResolvedValue(draft) }),
+        new InventoryService(inventoryRepo()),
+      ).invoice('business-a', 'sale-a'),
+    ).rejects.toMatchObject({ code: 'INVOICE_NOT_FINAL' });
+  });
   it('derives tenant from service context and draft creation does not affect stock', async () => {
     const createDraft = vi.fn().mockResolvedValue({ id: 'sale-a' });
     const apply = vi.fn();
