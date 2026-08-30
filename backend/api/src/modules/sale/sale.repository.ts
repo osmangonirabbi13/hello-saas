@@ -365,7 +365,6 @@ export class SaleRepository implements SaleRepositoryContract {
                 productId: line.productId,
                 serialNumber: { in: line.serialNumbers },
                 status: 'IN_STOCK',
-                saleId: null,
               },
               data: {
                 status: 'SOLD',

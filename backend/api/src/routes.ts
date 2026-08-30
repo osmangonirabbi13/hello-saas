@@ -17,6 +17,7 @@ import {
 } from './modules/inventory/inventory.routes.js';
 import { createPurchaseRouter } from './modules/purchase/purchase.routes.js';
 import { createSaleRouter } from './modules/sale/sale.routes.js';
+import { createReturnRouter } from './modules/return/return.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -65,5 +66,13 @@ export function createApiRouter(dependencies: {
     createPurchaseRouter(dependencies.authService, dependencies.authRepository),
   );
   router.use('/sales', createSaleRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/purchase-returns',
+    createReturnRouter(dependencies.authService, dependencies.authRepository, 'PURCHASE'),
+  );
+  router.use(
+    '/sale-returns',
+    createReturnRouter(dependencies.authService, dependencies.authRepository, 'SALE'),
+  );
   return router;
 }

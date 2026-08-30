@@ -76,7 +76,7 @@ export const navigation: NavigationItem[] = [
         'purchase-returns',
         'Purchase Return List',
         '/purchases/returns',
-        'purchase.return.read',
+        'purchase_return.read',
       ),
     ],
   },
@@ -88,7 +88,7 @@ export const navigation: NavigationItem[] = [
       child('sale-new', 'Create Sale', '/sales/new', 'sale.create'),
       child('sale-vat', 'Sale With Vat', '/sales/vat', 'sale.vat.create', 'NEW'),
       child('sales', 'Sale List', '/sales', 'sale.read'),
-      child('sale-returns', 'Sale Return List', '/sales/returns', 'sale.return.read'),
+      child('sale-returns', 'Sale Return List', '/sales/returns', 'sale_return.read'),
     ],
   },
   {

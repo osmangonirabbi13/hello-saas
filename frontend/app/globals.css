@@ -114,7 +114,7 @@ input[type='number'] {
     background: white;
   }
   aside,
-  header:not(.invoice-sheet header),
+  header:not(.invoice-sheet header):not(.return-sheet header),
   .no-print {
     display: none !important;
   }
@@ -137,6 +137,10 @@ input[type='number'] {
   .invoice-58mm,
   .invoice-80mm {
     width: max-content;
+  }
+  .return-sheet {
+    border: 0 !important;
+    box-shadow: none !important;
   }
 }
 ::-webkit-scrollbar {

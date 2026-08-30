@@ -61,6 +61,7 @@ enum SerialStatus {
   RECEIVED_FROM_SUPPLIER
   DELIVERED_TO_CUSTOMER
   SCRAPPED
+  RETURNED_TO_SUPPLIER
 }
 
 enum PurchaseStatus {
@@ -81,6 +82,28 @@ enum SaleStatus {
   CANCELLED
 }
 
+enum ReturnStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum PurchaseReturnReason {
+  WRONG_ITEM
+  DAMAGED
+  SUPPLIER_REQUEST
+  EXCESS_STOCK
+  OTHER
+}
+
+enum SaleReturnReason {
+  CUSTOMER_RETURN
+  DEFECTIVE
+  WRONG_ITEM
+  EXCHANGE
+  OTHER
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -90,41 +113,45 @@ enum SubscriptionStatus {
 }
 
 model User {
-  id                 String               @id @default(cuid())
-  email              String               @unique
-  passwordHash       String
-  displayName        String
-  isActive           Boolean              @default(true)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  memberships        BusinessMembership[]
-  sessions           LoginSession[]
-  auditLogs          AuditLog[]           @relation("AuditActor")
-  categories         Category[]           @relation("CategoryCreator")
-  subCategories      SubCategory[]        @relation("SubCategoryCreator")
-  brands             Brand[]              @relation("BrandCreator")
-  units              Unit[]               @relation("UnitCreator")
-  products           Product[]            @relation("ProductCreator")
-  customers          Customer[]           @relation("CustomerCreator")
-  suppliers          Supplier[]           @relation("SupplierCreator")
-  warehouses         Warehouse[]          @relation("WarehouseCreator")
-  stockMovements     StockMovement[]      @relation("StockMovementCreator")
-  stockAdjustments   StockAdjustment[]    @relation("StockAdjustmentCreator")
-  purchasesCreated   Purchase[]           @relation("PurchaseCreator")
-  purchasesPosted    Purchase[]           @relation("PurchasePoster")
-  purchasesCancelled Purchase[]           @relation("PurchaseCanceller")
-  salesCreated       Sale[]               @relation("SaleCreator")
-  salesPosted        Sale[]               @relation("SalePoster")
-  salesCancelled     Sale[]               @relation("SaleCanceller")
+  id                     String               @id @default(cuid())
+  email                  String               @unique
+  passwordHash           String
+  displayName            String
+  isActive               Boolean              @default(true)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  memberships            BusinessMembership[]
+  sessions               LoginSession[]
+  auditLogs              AuditLog[]           @relation("AuditActor")
+  categories             Category[]           @relation("CategoryCreator")
+  subCategories          SubCategory[]        @relation("SubCategoryCreator")
+  brands                 Brand[]              @relation("BrandCreator")
+  units                  Unit[]               @relation("UnitCreator")
+  products               Product[]            @relation("ProductCreator")
+  customers              Customer[]           @relation("CustomerCreator")
+  suppliers              Supplier[]           @relation("SupplierCreator")
+  warehouses             Warehouse[]          @relation("WarehouseCreator")
+  stockMovements         StockMovement[]      @relation("StockMovementCreator")
+  stockAdjustments       StockAdjustment[]    @relation("StockAdjustmentCreator")
+  purchasesCreated       Purchase[]           @relation("PurchaseCreator")
+  purchasesPosted        Purchase[]           @relation("PurchasePoster")
+  purchasesCancelled     Purchase[]           @relation("PurchaseCanceller")
+  salesCreated           Sale[]               @relation("SaleCreator")
+  salesPosted            Sale[]               @relation("SalePoster")
+  salesCancelled         Sale[]               @relation("SaleCanceller")
+  purchaseReturnsCreated PurchaseReturn[]     @relation("PurchaseReturnCreator")
+  purchaseReturnsPosted  PurchaseReturn[]     @relation("PurchaseReturnPoster")
+  saleReturnsCreated     SaleReturn[]         @relation("SaleReturnCreator")
+  saleReturnsPosted      SaleReturn[]         @relation("SaleReturnPoster")
 }
 
 model Business {
-  id               String               @id @default(cuid())
+  id               String                @id @default(cuid())
   name             String
-  slug             String               @unique
-  isActive         Boolean              @default(true)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  slug             String                @unique
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   memberships      BusinessMembership[]
   roles            Role[]
   sessions         LoginSession[]
@@ -146,6 +173,9 @@ model Business {
   sales            Sale[]
   invoices         Invoice[]
   subscription     BusinessSubscription?
+  purchaseReturns  PurchaseReturn[]
+  saleReturns      SaleReturn[]
+  serialHistory    SerialHistory[]
 
   @@index([createdAt])
 }
@@ -243,46 +273,48 @@ model Unit {
 }
 
 model Product {
-  id                 String                @id @default(cuid())
-  businessId         String
-  name               String
-  slug               String
-  sku                String
-  barcode            String?
-  categoryId         String
-  subCategoryId      String?
-  brandId            String?
-  unitId             String
-  description        String?
-  purchasePrice      Decimal               @db.Decimal(18, 2)
-  salePrice          Decimal               @db.Decimal(18, 2)
-  dealerPrice        Decimal?              @db.Decimal(18, 2)
-  minimumSalePrice   Decimal?              @db.Decimal(18, 2)
-  trackStock         Boolean               @default(true)
-  serialized         Boolean               @default(false)
-  reorderLevel       Decimal               @default(0) @db.Decimal(18, 3)
-  allowNegativeStock Boolean               @default(false)
-  warrantyEnabled    Boolean               @default(false)
-  warrantyDuration   Int?
-  warrantyUnit       WarrantyUnit?
-  primaryImageUrl    String?
-  isActive           Boolean               @default(true)
-  createdById        String
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  version            Int                   @default(1)
-  business           Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  category           Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  subCategory        SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
-  brand              Brand?                @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  unit               Unit                  @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  createdBy          User                  @relation("ProductCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  stockMovements     StockMovement[]
-  stockBalances      StockBalance[]
-  adjustmentLines    StockAdjustmentLine[]
-  serialItems        SerialItem[]
-  purchaseLines      PurchaseLine[]
-  saleLines          SaleLine[]
+  id                  String                @id @default(cuid())
+  businessId          String
+  name                String
+  slug                String
+  sku                 String
+  barcode             String?
+  categoryId          String
+  subCategoryId       String?
+  brandId             String?
+  unitId              String
+  description         String?
+  purchasePrice       Decimal               @db.Decimal(18, 2)
+  salePrice           Decimal               @db.Decimal(18, 2)
+  dealerPrice         Decimal?              @db.Decimal(18, 2)
+  minimumSalePrice    Decimal?              @db.Decimal(18, 2)
+  trackStock          Boolean               @default(true)
+  serialized          Boolean               @default(false)
+  reorderLevel        Decimal               @default(0) @db.Decimal(18, 3)
+  allowNegativeStock  Boolean               @default(false)
+  warrantyEnabled     Boolean               @default(false)
+  warrantyDuration    Int?
+  warrantyUnit        WarrantyUnit?
+  primaryImageUrl     String?
+  isActive            Boolean               @default(true)
+  createdById         String
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  version             Int                   @default(1)
+  business            Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  category            Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory         SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
+  brand               Brand?                @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  unit                Unit                  @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdBy           User                  @relation("ProductCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  stockMovements      StockMovement[]
+  stockBalances       StockBalance[]
+  adjustmentLines     StockAdjustmentLine[]
+  serialItems         SerialItem[]
+  purchaseLines       PurchaseLine[]
+  saleLines           SaleLine[]
+  purchaseReturnLines PurchaseReturnLine[]
+  saleReturnLines     SaleReturnLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -293,25 +325,27 @@ model Product {
 }
 
 model Warehouse {
-  id          String            @id @default(cuid())
-  businessId  String
-  name        String
-  code        String
-  description String?
-  address     String?
-  isDefault   Boolean           @default(false)
-  isActive    Boolean           @default(true)
-  createdById String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  business    Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  createdBy   User              @relation("WarehouseCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  movements   StockMovement[]
-  balances    StockBalance[]
-  adjustments StockAdjustment[]
-  serialItems SerialItem[]
-  purchases   Purchase[]
-  sales       Sale[]
+  id              String            @id @default(cuid())
+  businessId      String
+  name            String
+  code            String
+  description     String?
+  address         String?
+  isDefault       Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy       User              @relation("WarehouseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  movements       StockMovement[]
+  balances        StockBalance[]
+  adjustments     StockAdjustment[]
+  serialItems     SerialItem[]
+  purchases       Purchase[]
+  sales           Sale[]
+  purchaseReturns PurchaseReturn[]
+  saleReturns     SaleReturn[]
 
   @@unique([businessId, code])
   @@index([businessId, isActive])
@@ -412,8 +446,9 @@ model SerialItem {
   product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
   purchase      Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
 
-  sale          Sale?        @relation(fields: [saleId], references: [id], onDelete: Restrict)
-  customer      Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sale     Sale?           @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  history  SerialHistory[]
 
   @@unique([businessId, serialNumber])
   @@index([businessId, productId])
@@ -422,7 +457,7 @@ model SerialItem {
 }
 
 model Purchase {
-  id                    String         @id @default(cuid())
+  id                    String           @id @default(cuid())
   businessId            String
   purchaseNumber        String
   supplierId            String
@@ -431,31 +466,32 @@ model Purchase {
   reference             String?
   purchaseDate          DateTime
   dueDate               DateTime?
-  subtotal              Decimal        @db.Decimal(18, 2)
-  discountAmount        Decimal        @default(0) @db.Decimal(18, 2)
-  additionalCost        Decimal        @default(0) @db.Decimal(18, 2)
-  taxAmount             Decimal        @default(0) @db.Decimal(18, 2)
-  grandTotal            Decimal        @db.Decimal(18, 2)
-  paidAmount            Decimal        @default(0) @db.Decimal(18, 2)
-  dueAmount             Decimal        @db.Decimal(18, 2)
+  subtotal              Decimal          @db.Decimal(18, 2)
+  discountAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  additionalCost        Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount             Decimal          @default(0) @db.Decimal(18, 2)
+  grandTotal            Decimal          @db.Decimal(18, 2)
+  paidAmount            Decimal          @default(0) @db.Decimal(18, 2)
+  dueAmount             Decimal          @db.Decimal(18, 2)
   note                  String?
-  status                PurchaseStatus @default(DRAFT)
+  status                PurchaseStatus   @default(DRAFT)
   createdById           String
   postedById            String?
   postedAt              DateTime?
   cancelledById         String?
   cancelledAt           DateTime?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  version               Int            @default(1)
-  business              Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  supplier              Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  warehouse             Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  createdBy             User           @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  postedBy              User?          @relation("PurchasePoster", fields: [postedById], references: [id], onDelete: Restrict)
-  cancelledBy           User?          @relation("PurchaseCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  version               Int              @default(1)
+  business              Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  supplier              Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse             Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy             User             @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy              User?            @relation("PurchasePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy           User?            @relation("PurchaseCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
   lines                 PurchaseLine[]
   serialItems           SerialItem[]
+  returns               PurchaseReturn[]
 
   @@unique([businessId, purchaseNumber])
   @@index([businessId, status])
@@ -465,21 +501,22 @@ model Purchase {
 }
 
 model PurchaseLine {
-  id               String        @id @default(cuid())
+  id               String               @id @default(cuid())
   businessId       String
   purchaseId       String
   productId        String
-  quantity         Decimal       @db.Decimal(18, 3)
-  unitCost         Decimal       @db.Decimal(18, 2)
-  discountAmount   Decimal       @default(0) @db.Decimal(18, 2)
-  taxAmount        Decimal       @default(0) @db.Decimal(18, 2)
-  lineTotal        Decimal       @db.Decimal(18, 2)
+  quantity         Decimal              @db.Decimal(18, 3)
+  unitCost         Decimal              @db.Decimal(18, 2)
+  discountAmount   Decimal              @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal              @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal              @db.Decimal(18, 2)
   warrantyDuration Int?
   warrantyUnit     WarrantyUnit?
   serialNumbers    String[]
-  createdAt        DateTime      @default(now())
-  purchase         Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product          Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdAt        DateTime             @default(now())
+  purchase         Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product          Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  returnLines      PurchaseReturnLine[]
 
   @@unique([purchaseId, productId])
   @@index([businessId, productId])
@@ -496,42 +533,43 @@ model BusinessSequence {
 }
 
 model Sale {
-  id               String     @id @default(cuid())
-  businessId       String
-  saleNumber       String
-  invoiceNumber    String
-  customerId       String?
-  warehouseId      String
-  type             SaleType   @default(REGULAR)
-  saleDate         DateTime
-  dueDate          DateTime?
-  reference        String?
-  subtotal         Decimal    @db.Decimal(18, 2)
-  discountAmount   Decimal    @default(0) @db.Decimal(18, 2)
-  additionalCost   Decimal    @default(0) @db.Decimal(18, 2)
-  taxAmount        Decimal    @default(0) @db.Decimal(18, 2)
-  grandTotal       Decimal    @db.Decimal(18, 2)
-  paidAmount       Decimal    @default(0) @db.Decimal(18, 2)
-  dueAmount        Decimal    @db.Decimal(18, 2)
-  note             String?
-  status           SaleStatus @default(DRAFT)
-  createdById      String
-  postedById       String?
-  postedAt         DateTime?
-  cancelledById    String?
-  cancelledAt      DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  version          Int        @default(1)
-  business         Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  customer         Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  warehouse        Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  createdBy        User       @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  postedBy         User?      @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
-  cancelledBy      User?      @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
-  lines            SaleLine[]
-  serialItems      SerialItem[]
-  invoice          Invoice?
+  id             String       @id @default(cuid())
+  businessId     String
+  saleNumber     String
+  invoiceNumber  String
+  customerId     String?
+  warehouseId    String
+  type           SaleType     @default(REGULAR)
+  saleDate       DateTime
+  dueDate        DateTime?
+  reference      String?
+  subtotal       Decimal      @db.Decimal(18, 2)
+  discountAmount Decimal      @default(0) @db.Decimal(18, 2)
+  additionalCost Decimal      @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal      @default(0) @db.Decimal(18, 2)
+  grandTotal     Decimal      @db.Decimal(18, 2)
+  paidAmount     Decimal      @default(0) @db.Decimal(18, 2)
+  dueAmount      Decimal      @db.Decimal(18, 2)
+  note           String?
+  status         SaleStatus   @default(DRAFT)
+  createdById    String
+  postedById     String?
+  postedAt       DateTime?
+  cancelledById  String?
+  cancelledAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  version        Int          @default(1)
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy      User         @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy       User?        @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy    User?        @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  lines          SaleLine[]
+  serialItems    SerialItem[]
+  invoice        Invoice?
+  returns        SaleReturn[]
 
   @@unique([businessId, saleNumber])
   @@unique([businessId, invoiceNumber])
@@ -544,21 +582,22 @@ model Sale {
 }
 
 model SaleLine {
-  id               String       @id @default(cuid())
+  id               String           @id @default(cuid())
   businessId       String
   saleId           String
   productId        String
-  quantity         Decimal      @db.Decimal(18, 3)
-  unitPrice        Decimal      @db.Decimal(18, 2)
-  discountAmount   Decimal      @default(0) @db.Decimal(18, 2)
-  taxAmount        Decimal      @default(0) @db.Decimal(18, 2)
-  lineTotal        Decimal      @db.Decimal(18, 2)
+  quantity         Decimal          @db.Decimal(18, 3)
+  unitPrice        Decimal          @db.Decimal(18, 2)
+  discountAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal          @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal          @db.Decimal(18, 2)
   warrantyDuration Int?
   warrantyUnit     WarrantyUnit?
   serialNumbers    String[]
-  createdAt        DateTime     @default(now())
-  sale             Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product          Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdAt        DateTime         @default(now())
+  sale             Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product          Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  returnLines      SaleReturnLine[]
 
   @@unique([saleId, productId])
   @@index([businessId, productId])
@@ -578,6 +617,129 @@ model Invoice {
 
   @@unique([businessId, invoiceNumber])
   @@index([businessId, issuedAt])
+}
+
+model PurchaseReturn {
+  id             String               @id @default(cuid())
+  businessId     String
+  returnNumber   String
+  purchaseId     String
+  supplierId     String
+  warehouseId    String
+  returnDate     DateTime
+  reason         PurchaseReturnReason
+  note           String?
+  subtotal       Decimal              @db.Decimal(18, 2)
+  discountAmount Decimal              @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal              @default(0) @db.Decimal(18, 2)
+  grandTotal     Decimal              @db.Decimal(18, 2)
+  status         ReturnStatus         @default(DRAFT)
+  version        Int                  @default(1)
+  createdById    String
+  postedById     String?
+  postedAt       DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  business       Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  purchase       Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplier       Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy      User                 @relation("PurchaseReturnCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy       User?                @relation("PurchaseReturnPoster", fields: [postedById], references: [id], onDelete: Restrict)
+  lines          PurchaseReturnLine[]
+
+  @@unique([businessId, returnNumber])
+  @@index([businessId, purchaseId])
+  @@index([businessId, status])
+}
+
+model PurchaseReturnLine {
+  id               String         @id @default(cuid())
+  businessId       String
+  purchaseReturnId String
+  purchaseLineId   String
+  productId        String
+  quantity         Decimal        @db.Decimal(18, 3)
+  unitCost         Decimal        @db.Decimal(18, 2)
+  discountAmount   Decimal        @default(0) @db.Decimal(18, 2)
+  taxAmount        Decimal        @default(0) @db.Decimal(18, 2)
+  lineTotal        Decimal        @db.Decimal(18, 2)
+  serialNumbers    String[]
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  purchaseLine     PurchaseLine   @relation(fields: [purchaseLineId], references: [id], onDelete: Restrict)
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseReturnId, purchaseLineId])
+  @@index([businessId, productId])
+}
+
+model SaleReturn {
+  id             String           @id @default(cuid())
+  businessId     String
+  returnNumber   String
+  saleId         String
+  customerId     String?
+  warehouseId    String
+  returnDate     DateTime
+  reason         SaleReturnReason
+  note           String?
+  subtotal       Decimal          @db.Decimal(18, 2)
+  discountAmount Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  grandTotal     Decimal          @db.Decimal(18, 2)
+  status         ReturnStatus     @default(DRAFT)
+  version        Int              @default(1)
+  createdById    String
+  postedById     String?
+  postedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  business       Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sale           Sale             @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer       Customer?        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  warehouse      Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy      User             @relation("SaleReturnCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy       User?            @relation("SaleReturnPoster", fields: [postedById], references: [id], onDelete: Restrict)
+  lines          SaleReturnLine[]
+
+  @@unique([businessId, returnNumber])
+  @@index([businessId, saleId])
+  @@index([businessId, status])
+}
+
+model SaleReturnLine {
+  id             String     @id @default(cuid())
+  businessId     String
+  saleReturnId   String
+  saleLineId     String
+  productId      String
+  quantity       Decimal    @db.Decimal(18, 3)
+  unitPrice      Decimal    @db.Decimal(18, 2)
+  discountAmount Decimal    @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal    @default(0) @db.Decimal(18, 2)
+  lineTotal      Decimal    @db.Decimal(18, 2)
+  serialNumbers  String[]
+  saleReturn     SaleReturn @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
+  saleLine       SaleLine   @relation(fields: [saleLineId], references: [id], onDelete: Restrict)
+  product        Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([saleReturnId, saleLineId])
+  @@index([businessId, productId])
+}
+
+model SerialHistory {
+  id            String     @id @default(cuid())
+  businessId    String
+  serialItemId  String
+  eventType     String
+  referenceType String
+  referenceId   String
+  occurredAt    DateTime   @default(now())
+  business      Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  serialItem    SerialItem @relation(fields: [serialItemId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, serialItemId, occurredAt])
+  @@index([referenceType, referenceId])
 }
 
 model Customer {
@@ -609,8 +771,9 @@ model Customer {
   business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
   createdBy      User         @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
-  sales          Sale[]
-  serialItems    SerialItem[]
+  sales       Sale[]
+  serialItems SerialItem[]
+  returns     SaleReturn[]
 
   @@unique([businessId, customerCode])
   @@index([businessId])
@@ -620,7 +783,7 @@ model Customer {
 }
 
 model Supplier {
-  id             String     @id @default(cuid())
+  id             String           @id @default(cuid())
   businessId     String
   supplierCode   String
   name           String
@@ -635,18 +798,19 @@ model Supplier {
   city           String?
   district       String?
   postalCode     String?
-  country        String     @default("Bangladesh")
+  country        String           @default("Bangladesh")
   taxId          String?
   binNumber      String?
   notes          String?
-  isActive       Boolean    @default(true)
+  isActive       Boolean          @default(true)
   createdById    String
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  version        Int        @default(1)
-  business       Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  createdBy      User       @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  version        Int              @default(1)
+  business       Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User             @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: Restrict)
   purchases      Purchase[]
+  returns        PurchaseReturn[]
 
   @@unique([businessId, supplierCode])
   @@index([businessId])
@@ -656,7 +820,7 @@ model Supplier {
 }
 
 model MutationIdempotency {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   businessId     String
   userId         String
   operationId    String
@@ -665,7 +829,7 @@ model MutationIdempotency {
   status         String
   resourceId     String?
   responseData   Json?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
   completedAt    DateTime?
 
   @@unique([businessId, operationId, operationScope])
