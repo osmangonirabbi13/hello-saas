@@ -19,6 +19,8 @@ import { createPurchaseRouter } from './modules/purchase/purchase.routes.js';
 import { createSaleRouter } from './modules/sale/sale.routes.js';
 import { createReturnRouter } from './modules/return/return.routes.js';
 import { createPublicRmaRouter, createRmaRouter } from './modules/rma/rma.routes.js';
+import { createServiceRouter } from './modules/service/service.routes.js';
+import { createQuotationRouter } from './modules/quotation/quotation.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -77,5 +79,13 @@ export function createApiRouter(dependencies: {
     createReturnRouter(dependencies.authService, dependencies.authRepository, 'SALE'),
   );
   router.use('/rmas', createRmaRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/services',
+    createServiceRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/quotations',
+    createQuotationRouter(dependencies.authService, dependencies.authRepository),
+  );
   return router;
 }

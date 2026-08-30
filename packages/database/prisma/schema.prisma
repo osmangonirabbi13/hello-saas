@@ -138,6 +138,51 @@ enum RmaOutcome {
   UNREPAIRABLE
 }
 
+enum ServiceStatus {
+  RECEIVED
+  DIAGNOSING
+  WAITING_FOR_APPROVAL
+  IN_PROGRESS
+  WAITING_FOR_PARTS
+  READY_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum ServiceType {
+  REPAIR
+  DIAGNOSTIC
+  INSTALLATION
+  SOFTWARE
+  HARDWARE
+  MAINTENANCE
+  OTHER
+}
+
+enum ServicePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ServiceApprovalStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+  CANCELLED
+}
+
 enum PurchaseReturnReason {
   WRONG_ITEM
   DAMAGED
@@ -195,6 +240,12 @@ model User {
   saleReturnsPosted      SaleReturn[]         @relation("SaleReturnPoster")
   rmasCreated            Rma[]                @relation("RmaCreator")
   rmaHistory             RmaHistory[]         @relation("RmaHistoryActor")
+  serviceJobsCreated     ServiceJob[]         @relation("ServiceCreator")
+  serviceJobsAssigned    ServiceJob[]         @relation("ServiceAssignee")
+  serviceJobsDelivered   ServiceJob[]         @relation("ServiceDeliverer")
+  serviceHistory         ServiceHistory[]     @relation("ServiceHistoryActor")
+  quotationsCreated      Quotation[]          @relation("QuotationCreator")
+  quotationHistory       QuotationHistory[]   @relation("QuotationHistoryActor")
 }
 
 model Business {
@@ -230,6 +281,10 @@ model Business {
   serialHistory    SerialHistory[]
   rmas             Rma[]
   rmaHistory       RmaHistory[]
+  serviceJobs      ServiceJob[]
+  serviceHistory   ServiceHistory[]
+  quotations       Quotation[]
+  quotationHistory QuotationHistory[]
 
   @@index([createdAt])
 }
@@ -370,6 +425,9 @@ model Product {
   purchaseReturnLines PurchaseReturnLine[]
   saleReturnLines     SaleReturnLine[]
   rmas                Rma[]
+  serviceJobs         ServiceJob[]
+  serviceParts        ServicePart[]
+  quotationLines      QuotationLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -506,6 +564,7 @@ model SerialItem {
   history         SerialHistory[]
   rmas            Rma[]           @relation("RmaOriginalSerial")
   replacementRmas Rma[]           @relation("RmaReplacementSerial")
+  serviceJobs     ServiceJob[]
 
   @@unique([businessId, serialNumber])
   @@index([businessId, productId])
@@ -590,44 +649,45 @@ model BusinessSequence {
 }
 
 model Sale {
-  id             String       @id @default(cuid())
-  businessId     String
-  saleNumber     String
-  invoiceNumber  String
-  customerId     String?
-  warehouseId    String
-  type           SaleType     @default(REGULAR)
-  saleDate       DateTime
-  dueDate        DateTime?
-  reference      String?
-  subtotal       Decimal      @db.Decimal(18, 2)
-  discountAmount Decimal      @default(0) @db.Decimal(18, 2)
-  additionalCost Decimal      @default(0) @db.Decimal(18, 2)
-  taxAmount      Decimal      @default(0) @db.Decimal(18, 2)
-  grandTotal     Decimal      @db.Decimal(18, 2)
-  paidAmount     Decimal      @default(0) @db.Decimal(18, 2)
-  dueAmount      Decimal      @db.Decimal(18, 2)
-  note           String?
-  status         SaleStatus   @default(DRAFT)
-  createdById    String
-  postedById     String?
-  postedAt       DateTime?
-  cancelledById  String?
-  cancelledAt    DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  version        Int          @default(1)
-  business       Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  createdBy      User         @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  postedBy       User?        @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
-  cancelledBy    User?        @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
-  lines          SaleLine[]
-  serialItems    SerialItem[]
-  invoice        Invoice?
-  returns        SaleReturn[]
-  rmas           Rma[]
+  id              String       @id @default(cuid())
+  businessId      String
+  saleNumber      String
+  invoiceNumber   String
+  customerId      String?
+  warehouseId     String
+  type            SaleType     @default(REGULAR)
+  saleDate        DateTime
+  dueDate         DateTime?
+  reference       String?
+  subtotal        Decimal      @db.Decimal(18, 2)
+  discountAmount  Decimal      @default(0) @db.Decimal(18, 2)
+  additionalCost  Decimal      @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal      @default(0) @db.Decimal(18, 2)
+  grandTotal      Decimal      @db.Decimal(18, 2)
+  paidAmount      Decimal      @default(0) @db.Decimal(18, 2)
+  dueAmount       Decimal      @db.Decimal(18, 2)
+  note            String?
+  status          SaleStatus   @default(DRAFT)
+  createdById     String
+  postedById      String?
+  postedAt        DateTime?
+  cancelledById   String?
+  cancelledAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  version         Int          @default(1)
+  business        Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy       User         @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy        User?        @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy     User?        @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  lines           SaleLine[]
+  serialItems     SerialItem[]
+  invoice         Invoice?
+  returns         SaleReturn[]
+  rmas            Rma[]
+  sourceQuotation Quotation?   @relation("ConvertedQuotation")
 
   @@unique([businessId, saleNumber])
   @@unique([businessId, invoiceNumber])
@@ -911,6 +971,8 @@ model Customer {
   serialItems SerialItem[]
   returns     SaleReturn[]
   rmas        Rma[]
+  serviceJobs ServiceJob[]
+  quotations  Quotation[]
 
   @@unique([businessId, customerCode])
   @@index([businessId])
@@ -973,6 +1035,171 @@ model MutationIdempotency {
   @@unique([businessId, operationId, operationScope])
   @@index([businessId, createdAt])
   @@index([businessId, status])
+}
+
+model ServiceJob {
+  id                     String                @id @default(cuid())
+  businessId             String
+  serviceNumber          String
+  customerId             String?
+  productId              String?
+  serialItemId           String?
+  assigneeId             String?
+  deliveredById          String?
+  type                   ServiceType
+  typeDescription        String?
+  priority               ServicePriority       @default(NORMAL)
+  status                 ServiceStatus         @default(RECEIVED)
+  approvalStatus         ServiceApprovalStatus @default(NOT_REQUIRED)
+  deviceName             String
+  deviceBrand            String?
+  deviceModel            String?
+  externalSerialNumber   String?
+  color                  String?
+  condition              RmaCondition
+  conditionNote          String?
+  accessories            String[]
+  accessoriesNote        String?
+  customerComplaint      String
+  diagnosis              String?
+  recommendedWork        String?
+  workPerformed          String?
+  estimatedServiceCharge Decimal               @default(0) @db.Decimal(18, 2)
+  estimatedPartsCost     Decimal               @default(0) @db.Decimal(18, 2)
+  serviceCharge          Decimal               @default(0) @db.Decimal(18, 2)
+  partsCharge            Decimal               @default(0) @db.Decimal(18, 2)
+  discountAmount         Decimal               @default(0) @db.Decimal(18, 2)
+  taxAmount              Decimal               @default(0) @db.Decimal(18, 2)
+  grandTotal             Decimal               @default(0) @db.Decimal(18, 2)
+  estimatedCompletionAt  DateTime?
+  receivedAt             DateTime              @default(now())
+  deliveredAt            DateTime?
+  cancelledAt            DateTime?
+  createdById            String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  version                Int                   @default(1)
+  business               Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer               Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  product                Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  serialItem             SerialItem?           @relation(fields: [serialItemId], references: [id], onDelete: Restrict)
+  createdBy              User                  @relation("ServiceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee               User?                 @relation("ServiceAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  deliveredBy            User?                 @relation("ServiceDeliverer", fields: [deliveredById], references: [id], onDelete: Restrict)
+  parts                  ServicePart[]
+  history                ServiceHistory[]
+
+  @@unique([businessId, serviceNumber])
+  @@index([businessId, status, receivedAt])
+  @@index([businessId, customerId])
+  @@index([businessId, serialItemId])
+  @@index([businessId, assigneeId])
+}
+
+model ServicePart {
+  id           String     @id @default(cuid())
+  businessId   String
+  serviceJobId String
+  productId    String?
+  description  String
+  quantity     Decimal    @db.Decimal(18, 3)
+  unitPrice    Decimal    @db.Decimal(18, 2)
+  lineTotal    Decimal    @db.Decimal(18, 2)
+  createdAt    DateTime   @default(now())
+  serviceJob   ServiceJob @relation(fields: [serviceJobId], references: [id], onDelete: Cascade)
+  product      Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, serviceJobId])
+  @@index([businessId, productId])
+}
+
+model ServiceHistory {
+  id           String         @id @default(cuid())
+  businessId   String
+  serviceJobId String
+  fromStatus   ServiceStatus?
+  toStatus     ServiceStatus
+  action       String
+  note         String?
+  actorUserId  String
+  createdAt    DateTime       @default(now())
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  serviceJob   ServiceJob     @relation(fields: [serviceJobId], references: [id], onDelete: Restrict)
+  actor        User           @relation("ServiceHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, serviceJobId, createdAt])
+}
+
+model Quotation {
+  id              String             @id @default(cuid())
+  businessId      String
+  quotationNumber String
+  customerId      String?
+  prospectName    String?
+  prospectPhone   String?
+  quotationDate   DateTime
+  validUntil      DateTime
+  reference       String?
+  status          QuotationStatus    @default(DRAFT)
+  subtotal        Decimal            @db.Decimal(18, 2)
+  discountAmount  Decimal            @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal            @default(0) @db.Decimal(18, 2)
+  grandTotal      Decimal            @db.Decimal(18, 2)
+  customerNote    String?
+  internalNote    String?
+  terms           String?
+  convertedSaleId String?            @unique
+  createdById     String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  version         Int                @default(1)
+  business        Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  convertedSale   Sale?              @relation("ConvertedQuotation", fields: [convertedSaleId], references: [id], onDelete: Restrict)
+  createdBy       User               @relation("QuotationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines           QuotationLine[]
+  history         QuotationHistory[]
+
+  @@unique([businessId, quotationNumber])
+  @@index([businessId, status, quotationDate])
+  @@index([businessId, customerId])
+  @@index([businessId, validUntil])
+}
+
+model QuotationLine {
+  id             String    @id @default(cuid())
+  businessId     String
+  quotationId    String
+  productId      String
+  description    String?
+  quantity       Decimal   @db.Decimal(18, 3)
+  unitPrice      Decimal   @db.Decimal(18, 2)
+  discountAmount Decimal   @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal   @default(0) @db.Decimal(18, 2)
+  lineTotal      Decimal   @db.Decimal(18, 2)
+  createdAt      DateTime  @default(now())
+  quotation      Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([quotationId, productId])
+  @@index([businessId, productId])
+}
+
+model QuotationHistory {
+  id          String           @id @default(cuid())
+  businessId  String
+  quotationId String
+  fromStatus  QuotationStatus?
+  toStatus    QuotationStatus
+  action      String
+  note        String?
+  actorUserId String
+  createdAt   DateTime         @default(now())
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  quotation   Quotation        @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  actor       User             @relation("QuotationHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, quotationId, createdAt])
 }
 
 model BusinessMembership {

@@ -73,6 +73,44 @@ function saleData(input: SaleInput, totals: SaleTotals) {
   };
 }
 
+export async function createSaleDraftInTransaction(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  userId: string,
+  input: SaleInput,
+  totals: SaleTotals,
+  auditMetadata: Prisma.InputJsonValue = {},
+) {
+  const [saleValue, invoiceValue] = await Promise.all([
+    allocate(tx, businessId, 'SALE'),
+    allocate(tx, businessId, 'INVOICE'),
+  ]);
+  const saleNumber = displayNumber('SAL', saleValue);
+  const invoiceNumber = displayNumber('INV', invoiceValue);
+  const sale = await tx.sale.create({
+    data: {
+      businessId,
+      saleNumber,
+      invoiceNumber,
+      createdById: userId,
+      ...saleData(input, totals),
+      lines: { create: lineData(businessId, totals) },
+    },
+    include,
+  });
+  await tx.auditLog.create({
+    data: {
+      businessId,
+      actorUserId: userId,
+      action: 'sale.create',
+      entityType: 'Sale',
+      entityId: sale.id,
+      metadata: { saleNumber, invoiceNumber, ...(auditMetadata as object) },
+    },
+  });
+  return serialize(sale);
+}
+
 function warrantyEnd(start: Date, duration: number | null, unit: string | null) {
   if (!duration || !unit) return null;
   const end = new Date(start);
@@ -137,36 +175,7 @@ export class SaleRepository implements SaleRepositoryContract {
       userId,
       identity,
       payload: input,
-      execute: async (tx) => {
-        const [saleValue, invoiceValue] = await Promise.all([
-          allocate(tx, businessId, 'SALE'),
-          allocate(tx, businessId, 'INVOICE'),
-        ]);
-        const saleNumber = displayNumber('SAL', saleValue);
-        const invoiceNumber = displayNumber('INV', invoiceValue);
-        const sale = await tx.sale.create({
-          data: {
-            businessId,
-            saleNumber,
-            invoiceNumber,
-            createdById: userId,
-            ...saleData(input, totals),
-            lines: { create: lineData(businessId, totals) },
-          },
-          include,
-        });
-        await tx.auditLog.create({
-          data: {
-            businessId,
-            actorUserId: userId,
-            action: 'sale.create',
-            entityType: 'Sale',
-            entityId: sale.id,
-            metadata: { saleNumber, invoiceNumber },
-          },
-        });
-        return serialize(sale);
-      },
+      execute: (tx) => createSaleDraftInTransaction(tx, businessId, userId, input, totals),
     });
   }
 

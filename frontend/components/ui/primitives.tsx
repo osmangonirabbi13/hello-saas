@@ -7,14 +7,24 @@ import { cn } from '@/lib/utils';
 export function Button({
   className,
   variant = 'primary',
+  size = 'default',
+  busy = false,
+  busyLabel = 'Working…',
+  children,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'small' | 'default' | 'large';
+  busy?: boolean;
+  busyLabel?: string;
 }) {
   return (
     <button
       className={cn(
-        'inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg font-semibold transition-colors active:bg-opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+        size === 'small' && 'h-9 px-3 text-xs',
+        size === 'default' && 'h-10 px-4 text-sm',
+        size === 'large' && 'h-11 px-5 text-sm',
         variant === 'primary' && 'bg-emerald-700 text-white hover:bg-emerald-800',
         variant === 'secondary' &&
           'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
@@ -22,8 +32,50 @@ export function Button({
         variant === 'danger' && 'bg-rose-600 text-white hover:bg-rose-700',
         className,
       )}
+      disabled={busy || props.disabled}
+      aria-busy={busy || undefined}
       {...props}
-    />
+    >
+      {busy ? busyLabel : children}
+    </button>
+  );
+}
+export const controlClass =
+  'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 read-only:bg-slate-50';
+export const textAreaClass =
+  'min-h-24 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100';
+export function FieldLabel({
+  label,
+  htmlFor,
+  helper,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  helper?: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block text-sm font-semibold text-slate-700" htmlFor={htmlFor}>
+      {label}
+      {children}
+      {error ? (
+        <span className="mt-1 block text-xs font-normal text-rose-700" role="alert">
+          {error}
+        </span>
+      ) : helper ? (
+        <span className="mt-1 block text-xs font-normal text-slate-500">{helper}</span>
+      ) : null}
+    </label>
+  );
+}
+export function FormActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/85">
+      {children}
+    </div>
   );
 }
 export function PageHeader({
@@ -36,9 +88,9 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">{title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">{title}</h1>
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -76,7 +128,7 @@ export function SearchInput(props: InputHTMLAttributes<HTMLInputElement>) {
 }
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2.5 sm:flex-row sm:items-center">
       {children}
     </div>
   );
@@ -99,7 +151,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
         tone === 'success' && 'bg-emerald-50 text-emerald-700',
         tone === 'warning' && 'bg-amber-50 text-amber-700',
         tone === 'danger' && 'bg-rose-50 text-rose-700',
