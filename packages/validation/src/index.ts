@@ -27,3 +27,4 @@ export * from './inventory.js';
 export * from './purchase.js';
 export * from './sale.js';
 export * from './return.js';
+export * from './rma.js';

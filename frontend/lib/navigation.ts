@@ -96,6 +96,7 @@ export const navigation: NavigationItem[] = [
     label: 'Warranty',
     icon: ShieldCheck,
     children: [
+      child('warranty-check', 'Warranty Check', '/warranty/check', 'warranty.check'),
       child('serials', 'Serial List', '/warranty/serials', 'serial.read'),
       child('rma', 'RMA', '/warranty/rma', 'rma.read'),
     ],

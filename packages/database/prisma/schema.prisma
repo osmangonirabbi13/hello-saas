@@ -88,6 +88,56 @@ enum ReturnStatus {
   CANCELLED
 }
 
+enum RmaStatus {
+  RECEIVED
+  INSPECTING
+  APPROVED
+  REJECTED
+  SENT_TO_SUPPLIER
+  SUPPLIER_PROCESSING
+  SUPPLIER_RETURNED
+  READY_FOR_CUSTOMER
+  DELIVERED
+  CANCELLED
+}
+
+enum RmaIssue {
+  NOT_POWERING_ON
+  DISPLAY_ISSUE
+  BATTERY_ISSUE
+  CHARGING_ISSUE
+  HARDWARE_FAILURE
+  SOFTWARE_ISSUE
+  PHYSICAL_DAMAGE
+  OTHER
+}
+
+enum RmaCondition {
+  GOOD
+  SCRATCHED
+  DENTED
+  BROKEN
+  LIQUID_DAMAGE
+  OTHER
+}
+
+enum WarrantyDecision {
+  WARRANTY_APPROVED
+  WARRANTY_REJECTED
+  OUT_OF_WARRANTY
+  CUSTOMER_DAMAGE
+  PAID_SERVICE_REQUIRED
+}
+
+enum RmaOutcome {
+  REPAIRED
+  REPLACED
+  REJECTED
+  NO_FAULT_FOUND
+  CUSTOMER_DAMAGE
+  UNREPAIRABLE
+}
+
 enum PurchaseReturnReason {
   WRONG_ITEM
   DAMAGED
@@ -143,6 +193,8 @@ model User {
   purchaseReturnsPosted  PurchaseReturn[]     @relation("PurchaseReturnPoster")
   saleReturnsCreated     SaleReturn[]         @relation("SaleReturnCreator")
   saleReturnsPosted      SaleReturn[]         @relation("SaleReturnPoster")
+  rmasCreated            Rma[]                @relation("RmaCreator")
+  rmaHistory             RmaHistory[]         @relation("RmaHistoryActor")
 }
 
 model Business {
@@ -176,6 +228,8 @@ model Business {
   purchaseReturns  PurchaseReturn[]
   saleReturns      SaleReturn[]
   serialHistory    SerialHistory[]
+  rmas             Rma[]
+  rmaHistory       RmaHistory[]
 
   @@index([createdAt])
 }
@@ -315,6 +369,7 @@ model Product {
   saleLines           SaleLine[]
   purchaseReturnLines PurchaseReturnLine[]
   saleReturnLines     SaleReturnLine[]
+  rmas                Rma[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -446,9 +501,11 @@ model SerialItem {
   product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
   purchase      Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
 
-  sale     Sale?           @relation(fields: [saleId], references: [id], onDelete: Restrict)
-  customer Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  history  SerialHistory[]
+  sale            Sale?           @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  history         SerialHistory[]
+  rmas            Rma[]           @relation("RmaOriginalSerial")
+  replacementRmas Rma[]           @relation("RmaReplacementSerial")
 
   @@unique([businessId, serialNumber])
   @@index([businessId, productId])
@@ -570,6 +627,7 @@ model Sale {
   serialItems    SerialItem[]
   invoice        Invoice?
   returns        SaleReturn[]
+  rmas           Rma[]
 
   @@unique([businessId, saleNumber])
   @@unique([businessId, invoiceNumber])
@@ -598,6 +656,7 @@ model SaleLine {
   sale             Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product          Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
   returnLines      SaleReturnLine[]
+  rmas             Rma[]
 
   @@unique([saleId, productId])
   @@index([businessId, productId])
@@ -742,6 +801,83 @@ model SerialHistory {
   @@index([referenceType, referenceId])
 }
 
+model Rma {
+  id                      String            @id @default(cuid())
+  businessId              String
+  rmaNumber               String
+  publicToken             String            @unique
+  saleId                  String
+  saleLineId              String
+  productId               String
+  serialItemId            String?
+  replacementSerialItemId String?
+  customerId              String?
+  supplierId              String?
+  quantity                Decimal           @default(1) @db.Decimal(18, 3)
+  status                  RmaStatus         @default(RECEIVED)
+  issue                   RmaIssue
+  issueDescription        String
+  physicalCondition       RmaCondition
+  conditionNote           String?
+  accessories             String[]
+  accessoriesNote         String?
+  customerNotes           String?
+  internalNotes           String?
+  warrantyEligible        Boolean
+  warrantyReason          String
+  warrantyStart           DateTime?
+  warrantyEnd             DateTime?
+  warrantyDecision        WarrantyDecision?
+  outcome                 RmaOutcome?
+  supplierReference       String?
+  courierReference        String?
+  sentToSupplierAt        DateTime?
+  receivedFromSupplierAt  DateTime?
+  courierCost             Decimal           @default(0) @db.Decimal(18, 2)
+  supplierServiceCost     Decimal           @default(0) @db.Decimal(18, 2)
+  otherOperationalCost    Decimal           @default(0) @db.Decimal(18, 2)
+  estimatedCustomerCharge Decimal           @default(0) @db.Decimal(18, 2)
+  createdById             String
+  receivedAt              DateTime          @default(now())
+  deliveredAt             DateTime?
+  cancelledAt             DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  business                Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sale                    Sale              @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  saleLine                SaleLine          @relation(fields: [saleLineId], references: [id], onDelete: Restrict)
+  product                 Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  serialItem              SerialItem?       @relation("RmaOriginalSerial", fields: [serialItemId], references: [id], onDelete: Restrict)
+  replacementSerialItem   SerialItem?       @relation("RmaReplacementSerial", fields: [replacementSerialItemId], references: [id], onDelete: Restrict)
+  customer                Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  supplier                Supplier?         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy               User              @relation("RmaCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  history                 RmaHistory[]
+
+  @@unique([businessId, rmaNumber])
+  @@index([businessId, status, receivedAt])
+  @@index([businessId, serialItemId])
+  @@index([businessId, saleId])
+  @@index([businessId, supplierId])
+}
+
+model RmaHistory {
+  id          String     @id @default(cuid())
+  businessId  String
+  rmaId       String
+  fromStatus  RmaStatus?
+  toStatus    RmaStatus
+  action      String
+  note        String?
+  actorUserId String
+  createdAt   DateTime   @default(now())
+  business    Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  rma         Rma        @relation(fields: [rmaId], references: [id], onDelete: Restrict)
+  actor       User       @relation("RmaHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, rmaId, createdAt])
+}
+
 model Customer {
   id             String       @id @default(cuid())
   businessId     String
@@ -774,6 +910,7 @@ model Customer {
   sales       Sale[]
   serialItems SerialItem[]
   returns     SaleReturn[]
+  rmas        Rma[]
 
   @@unique([businessId, customerCode])
   @@index([businessId])
@@ -811,6 +948,7 @@ model Supplier {
   createdBy      User             @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: Restrict)
   purchases      Purchase[]
   returns        PurchaseReturn[]
+  rmas           Rma[]
 
   @@unique([businessId, supplierCode])
   @@index([businessId])

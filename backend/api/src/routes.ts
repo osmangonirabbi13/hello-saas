@@ -18,6 +18,7 @@ import {
 import { createPurchaseRouter } from './modules/purchase/purchase.routes.js';
 import { createSaleRouter } from './modules/sale/sale.routes.js';
 import { createReturnRouter } from './modules/return/return.routes.js';
+import { createPublicRmaRouter, createRmaRouter } from './modules/rma/rma.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -26,6 +27,7 @@ export function createApiRouter(dependencies: {
 }): Router {
   const router = Router();
   router.use('/auth', createAuthRouter(dependencies.authService, dependencies.cookieSecure));
+  router.use('/track/rma', createPublicRmaRouter());
   router.use(
     '/dashboard',
     createDashboardRouter(dependencies.authService, dependencies.authRepository),
@@ -74,5 +76,6 @@ export function createApiRouter(dependencies: {
     '/sale-returns',
     createReturnRouter(dependencies.authService, dependencies.authRepository, 'SALE'),
   );
+  router.use('/rmas', createRmaRouter(dependencies.authService, dependencies.authRepository));
   return router;
 }
