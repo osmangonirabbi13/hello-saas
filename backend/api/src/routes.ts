@@ -21,6 +21,11 @@ import { createReturnRouter } from './modules/return/return.routes.js';
 import { createPublicRmaRouter, createRmaRouter } from './modules/rma/rma.routes.js';
 import { createServiceRouter } from './modules/service/service.routes.js';
 import { createQuotationRouter } from './modules/quotation/quotation.routes.js';
+import { createDamageRouter } from './modules/damage/damage.routes.js';
+import {
+  createExpenseCategoryRouter,
+  createExpenseRouter,
+} from './modules/expense/expense.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -86,6 +91,15 @@ export function createApiRouter(dependencies: {
   router.use(
     '/quotations',
     createQuotationRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use('/damages', createDamageRouter(dependencies.authService, dependencies.authRepository));
+  router.use(
+    '/expenses',
+    createExpenseRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/expense-categories',
+    createExpenseCategoryRouter(dependencies.authService, dependencies.authRepository),
   );
   return router;
 }

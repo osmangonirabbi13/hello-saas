@@ -64,6 +64,40 @@ enum SerialStatus {
   RETURNED_TO_SUPPLIER
 }
 
+enum DamageStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum DamageReason {
+  BROKEN
+  WATER_DAMAGE
+  FIRE_DAMAGE
+  ELECTRICAL_DAMAGE
+  SHIPPING_DAMAGE
+  HANDLING_DAMAGE
+  EXPIRED
+  UNUSABLE
+  MISSING_PARTS
+  OTHER
+}
+
+enum ExpenseStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum ExpensePaymentMethod {
+  CASH
+  BANK
+  BKASH
+  NAGAD
+  CARD
+  OTHER
+}
+
 enum PurchaseStatus {
   DRAFT
   POSTED
@@ -246,45 +280,53 @@ model User {
   serviceHistory         ServiceHistory[]     @relation("ServiceHistoryActor")
   quotationsCreated      Quotation[]          @relation("QuotationCreator")
   quotationHistory       QuotationHistory[]   @relation("QuotationHistoryActor")
+  damagesCreated         Damage[]             @relation("DamageCreator")
+  damagesPosted          Damage[]             @relation("DamagePoster")
+  expensesCreated        Expense[]            @relation("ExpenseCreator")
+  expensesPosted         Expense[]            @relation("ExpensePoster")
+  expenseCategories      ExpenseCategory[]    @relation("ExpenseCategoryCreator")
 }
 
 model Business {
-  id               String                @id @default(cuid())
-  name             String
-  slug             String                @unique
-  isActive         Boolean               @default(true)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  memberships      BusinessMembership[]
-  roles            Role[]
-  sessions         LoginSession[]
-  auditLogs        AuditLog[]
-  categories       Category[]
-  subCategories    SubCategory[]
-  brands           Brand[]
-  units            Unit[]
-  products         Product[]
-  customers        Customer[]
-  suppliers        Supplier[]
-  sequences        BusinessSequence[]
-  warehouses       Warehouse[]
-  stockMovements   StockMovement[]
-  stockBalances    StockBalance[]
-  stockAdjustments StockAdjustment[]
-  serialItems      SerialItem[]
-  purchases        Purchase[]
-  sales            Sale[]
-  invoices         Invoice[]
-  subscription     BusinessSubscription?
-  purchaseReturns  PurchaseReturn[]
-  saleReturns      SaleReturn[]
-  serialHistory    SerialHistory[]
-  rmas             Rma[]
-  rmaHistory       RmaHistory[]
-  serviceJobs      ServiceJob[]
-  serviceHistory   ServiceHistory[]
-  quotations       Quotation[]
-  quotationHistory QuotationHistory[]
+  id                String                @id @default(cuid())
+  name              String
+  slug              String                @unique
+  isActive          Boolean               @default(true)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  memberships       BusinessMembership[]
+  roles             Role[]
+  sessions          LoginSession[]
+  auditLogs         AuditLog[]
+  categories        Category[]
+  subCategories     SubCategory[]
+  brands            Brand[]
+  units             Unit[]
+  products          Product[]
+  customers         Customer[]
+  suppliers         Supplier[]
+  sequences         BusinessSequence[]
+  warehouses        Warehouse[]
+  stockMovements    StockMovement[]
+  stockBalances     StockBalance[]
+  stockAdjustments  StockAdjustment[]
+  serialItems       SerialItem[]
+  purchases         Purchase[]
+  sales             Sale[]
+  invoices          Invoice[]
+  subscription      BusinessSubscription?
+  purchaseReturns   PurchaseReturn[]
+  saleReturns       SaleReturn[]
+  serialHistory     SerialHistory[]
+  rmas              Rma[]
+  rmaHistory        RmaHistory[]
+  serviceJobs       ServiceJob[]
+  serviceHistory    ServiceHistory[]
+  quotations        Quotation[]
+  quotationHistory  QuotationHistory[]
+  damages           Damage[]
+  expenses          Expense[]
+  expenseCategories ExpenseCategory[]
 
   @@index([createdAt])
 }
@@ -428,6 +470,7 @@ model Product {
   serviceJobs         ServiceJob[]
   serviceParts        ServicePart[]
   quotationLines      QuotationLine[]
+  damageLines         DamageLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -459,6 +502,7 @@ model Warehouse {
   sales           Sale[]
   purchaseReturns PurchaseReturn[]
   saleReturns     SaleReturn[]
+  damages         Damage[]
 
   @@unique([businessId, code])
   @@index([businessId, isActive])
@@ -540,24 +584,25 @@ model StockAdjustmentLine {
 }
 
 model SerialItem {
-  id            String       @id @default(cuid())
+  id            String        @id @default(cuid())
   businessId    String
   warehouseId   String
   productId     String
   serialNumber  String
-  status        SerialStatus @default(IN_STOCK)
+  status        SerialStatus  @default(IN_STOCK)
   purchaseId    String?
   saleId        String?
   customerId    String?
   supplierId    String?
   warrantyStart DateTime?
   warrantyEnd   DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  business      Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  product       Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
-  purchase      Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  damageSerial  DamageSerial?
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  purchase      Purchase?     @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
 
   sale            Sale?           @relation(fields: [saleId], references: [id], onDelete: Restrict)
   customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -1297,4 +1342,106 @@ model AuditLog {
   @@index([businessId, createdAt])
   @@index([businessId, entityType, entityId])
   @@index([actorUserId, createdAt])
+}
+
+model Damage {
+  id               String       @id @default(cuid())
+  businessId       String
+  damageNumber     String
+  warehouseId      String
+  damageDate       DateTime
+  reason           DamageReason
+  notes            String?
+  status           DamageStatus @default(DRAFT)
+  totalDamageValue Decimal      @default(0) @db.Decimal(18, 2)
+  createdById      String
+  postedById       String?
+  postedAt         DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  version          Int          @default(1)
+  business         Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse        Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy        User         @relation("DamageCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy         User?        @relation("DamagePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  lines            DamageLine[]
+
+  @@unique([businessId, damageNumber])
+  @@index([businessId, status, damageDate])
+  @@index([businessId, warehouseId])
+}
+
+model DamageLine {
+  id               String         @id @default(cuid())
+  businessId       String
+  damageId         String
+  productId        String
+  quantity         Decimal        @db.Decimal(18, 3)
+  unitCostSnapshot Decimal        @db.Decimal(18, 2)
+  totalDamageValue Decimal        @db.Decimal(18, 2)
+  createdAt        DateTime       @default(now())
+  damage           Damage         @relation(fields: [damageId], references: [id], onDelete: Cascade)
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  serials          DamageSerial[]
+
+  @@unique([damageId, productId])
+  @@index([businessId, productId])
+}
+
+model DamageSerial {
+  damageLineId String
+  serialItemId String
+  createdAt    DateTime   @default(now())
+  damageLine   DamageLine @relation(fields: [damageLineId], references: [id], onDelete: Cascade)
+  serialItem   SerialItem @relation(fields: [serialItemId], references: [id], onDelete: Restrict)
+
+  @@id([damageLineId, serialItemId])
+  @@unique([serialItemId])
+}
+
+model ExpenseCategory {
+  id          String    @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy   User      @relation("ExpenseCategoryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  expenses    Expense[]
+
+  @@unique([businessId, name])
+  @@index([businessId, isActive])
+}
+
+model Expense {
+  id            String                @id @default(cuid())
+  businessId    String
+  expenseNumber String
+  categoryId    String
+  expenseDate   DateTime
+  amount        Decimal               @db.Decimal(18, 2)
+  description   String
+  payee         String?
+  paymentMethod ExpensePaymentMethod?
+  reference     String?
+  notes         String?
+  status        ExpenseStatus         @default(DRAFT)
+  createdById   String
+  postedById    String?
+  postedAt      DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  version       Int                   @default(1)
+  business      Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  category      ExpenseCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy     User                  @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy      User?                 @relation("ExpensePoster", fields: [postedById], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, expenseNumber])
+  @@index([businessId, status, expenseDate])
+  @@index([businessId, categoryId, expenseDate])
+  @@index([businessId, paymentMethod])
 }

@@ -135,7 +135,7 @@ export const navigation: NavigationItem[] = [
     icon: ReceiptText,
     children: [
       child('expenses', 'Expense', '/expenses', 'expense.read'),
-      child('expense-types', 'Expense Type', '/expenses/types', 'expense.type.manage'),
+      child('expense-types', 'Expense Categories', '/expenses/types', 'expense_category.read'),
       child('expense-by-type', 'Expense By Type', '/expenses/by-type', 'expense.read'),
     ],
   },

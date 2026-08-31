@@ -29,3 +29,4 @@ export * from './sale.js';
 export * from './return.js';
 export * from './rma.js';
 export * from './service-quotation.js';
+export * from './damage-expense.js';

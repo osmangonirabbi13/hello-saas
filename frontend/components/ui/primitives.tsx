@@ -21,7 +21,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg font-semibold transition-colors active:bg-opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex cursor-pointer touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors active:bg-opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
         size === 'small' && 'h-9 px-3 text-xs',
         size === 'default' && 'h-10 px-4 text-sm',
         size === 'large' && 'h-11 px-5 text-sm',
@@ -73,7 +73,7 @@ export function FieldLabel({
 }
 export function FormActions({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/85">
+    <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/85 max-sm:[&>button]:flex-1">
       {children}
     </div>
   );
@@ -89,11 +89,15 @@ export function PageHeader({
 }) {
   return (
     <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+      <div className="min-w-0">
         <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">{title}</h1>
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>a]:flex-1 max-sm:[&_button]:w-full">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -128,7 +132,7 @@ export function SearchInput(props: InputHTMLAttributes<HTMLInputElement>) {
 }
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2.5 sm:flex-row sm:items-center">
+    <div className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-2.5 sm:flex-row sm:items-center">
       {children}
     </div>
   );
