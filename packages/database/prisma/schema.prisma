@@ -98,6 +98,36 @@ enum ExpensePaymentMethod {
   OTHER
 }
 
+enum FinancialAccountType {
+  CASH
+  BANK
+  BKASH
+  NAGAD
+  CARD
+  OTHER
+}
+
+enum FinancialTransactionType {
+  OPENING_BALANCE
+  MONEY_IN
+  MONEY_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+}
+
+enum FinancialDirection {
+  IN
+  OUT
+}
+
+enum FinancialTransactionStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
 enum PurchaseStatus {
   DRAFT
   POSTED
@@ -242,91 +272,97 @@ enum SubscriptionStatus {
 }
 
 model User {
-  id                     String               @id @default(cuid())
-  email                  String               @unique
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
   passwordHash           String
   displayName            String
-  isActive               Boolean              @default(true)
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
   memberships            BusinessMembership[]
   sessions               LoginSession[]
-  auditLogs              AuditLog[]           @relation("AuditActor")
-  categories             Category[]           @relation("CategoryCreator")
-  subCategories          SubCategory[]        @relation("SubCategoryCreator")
-  brands                 Brand[]              @relation("BrandCreator")
-  units                  Unit[]               @relation("UnitCreator")
-  products               Product[]            @relation("ProductCreator")
-  customers              Customer[]           @relation("CustomerCreator")
-  suppliers              Supplier[]           @relation("SupplierCreator")
-  warehouses             Warehouse[]          @relation("WarehouseCreator")
-  stockMovements         StockMovement[]      @relation("StockMovementCreator")
-  stockAdjustments       StockAdjustment[]    @relation("StockAdjustmentCreator")
-  purchasesCreated       Purchase[]           @relation("PurchaseCreator")
-  purchasesPosted        Purchase[]           @relation("PurchasePoster")
-  purchasesCancelled     Purchase[]           @relation("PurchaseCanceller")
-  salesCreated           Sale[]               @relation("SaleCreator")
-  salesPosted            Sale[]               @relation("SalePoster")
-  salesCancelled         Sale[]               @relation("SaleCanceller")
-  purchaseReturnsCreated PurchaseReturn[]     @relation("PurchaseReturnCreator")
-  purchaseReturnsPosted  PurchaseReturn[]     @relation("PurchaseReturnPoster")
-  saleReturnsCreated     SaleReturn[]         @relation("SaleReturnCreator")
-  saleReturnsPosted      SaleReturn[]         @relation("SaleReturnPoster")
-  rmasCreated            Rma[]                @relation("RmaCreator")
-  rmaHistory             RmaHistory[]         @relation("RmaHistoryActor")
-  serviceJobsCreated     ServiceJob[]         @relation("ServiceCreator")
-  serviceJobsAssigned    ServiceJob[]         @relation("ServiceAssignee")
-  serviceJobsDelivered   ServiceJob[]         @relation("ServiceDeliverer")
-  serviceHistory         ServiceHistory[]     @relation("ServiceHistoryActor")
-  quotationsCreated      Quotation[]          @relation("QuotationCreator")
-  quotationHistory       QuotationHistory[]   @relation("QuotationHistoryActor")
-  damagesCreated         Damage[]             @relation("DamageCreator")
-  damagesPosted          Damage[]             @relation("DamagePoster")
-  expensesCreated        Expense[]            @relation("ExpenseCreator")
-  expensesPosted         Expense[]            @relation("ExpensePoster")
-  expenseCategories      ExpenseCategory[]    @relation("ExpenseCategoryCreator")
+  auditLogs              AuditLog[]             @relation("AuditActor")
+  categories             Category[]             @relation("CategoryCreator")
+  subCategories          SubCategory[]          @relation("SubCategoryCreator")
+  brands                 Brand[]                @relation("BrandCreator")
+  units                  Unit[]                 @relation("UnitCreator")
+  products               Product[]              @relation("ProductCreator")
+  customers              Customer[]             @relation("CustomerCreator")
+  suppliers              Supplier[]             @relation("SupplierCreator")
+  warehouses             Warehouse[]            @relation("WarehouseCreator")
+  stockMovements         StockMovement[]        @relation("StockMovementCreator")
+  stockAdjustments       StockAdjustment[]      @relation("StockAdjustmentCreator")
+  purchasesCreated       Purchase[]             @relation("PurchaseCreator")
+  purchasesPosted        Purchase[]             @relation("PurchasePoster")
+  purchasesCancelled     Purchase[]             @relation("PurchaseCanceller")
+  salesCreated           Sale[]                 @relation("SaleCreator")
+  salesPosted            Sale[]                 @relation("SalePoster")
+  salesCancelled         Sale[]                 @relation("SaleCanceller")
+  purchaseReturnsCreated PurchaseReturn[]       @relation("PurchaseReturnCreator")
+  purchaseReturnsPosted  PurchaseReturn[]       @relation("PurchaseReturnPoster")
+  saleReturnsCreated     SaleReturn[]           @relation("SaleReturnCreator")
+  saleReturnsPosted      SaleReturn[]           @relation("SaleReturnPoster")
+  rmasCreated            Rma[]                  @relation("RmaCreator")
+  rmaHistory             RmaHistory[]           @relation("RmaHistoryActor")
+  serviceJobsCreated     ServiceJob[]           @relation("ServiceCreator")
+  serviceJobsAssigned    ServiceJob[]           @relation("ServiceAssignee")
+  serviceJobsDelivered   ServiceJob[]           @relation("ServiceDeliverer")
+  serviceHistory         ServiceHistory[]       @relation("ServiceHistoryActor")
+  quotationsCreated      Quotation[]            @relation("QuotationCreator")
+  quotationHistory       QuotationHistory[]     @relation("QuotationHistoryActor")
+  damagesCreated         Damage[]               @relation("DamageCreator")
+  damagesPosted          Damage[]               @relation("DamagePoster")
+  expensesCreated        Expense[]              @relation("ExpenseCreator")
+  expensesPosted         Expense[]              @relation("ExpensePoster")
+  expenseCategories      ExpenseCategory[]      @relation("ExpenseCategoryCreator")
+  financialAccounts      FinancialAccount[]     @relation("FinancialAccountCreator")
+  financialTransactions  FinancialTransaction[] @relation("FinancialTransactionCreator")
+  financialTransfers     FinancialTransfer[]    @relation("FinancialTransferCreator")
 }
 
 model Business {
-  id                String                @id @default(cuid())
-  name              String
-  slug              String                @unique
-  isActive          Boolean               @default(true)
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  memberships       BusinessMembership[]
-  roles             Role[]
-  sessions          LoginSession[]
-  auditLogs         AuditLog[]
-  categories        Category[]
-  subCategories     SubCategory[]
-  brands            Brand[]
-  units             Unit[]
-  products          Product[]
-  customers         Customer[]
-  suppliers         Supplier[]
-  sequences         BusinessSequence[]
-  warehouses        Warehouse[]
-  stockMovements    StockMovement[]
-  stockBalances     StockBalance[]
-  stockAdjustments  StockAdjustment[]
-  serialItems       SerialItem[]
-  purchases         Purchase[]
-  sales             Sale[]
-  invoices          Invoice[]
-  subscription      BusinessSubscription?
-  purchaseReturns   PurchaseReturn[]
-  saleReturns       SaleReturn[]
-  serialHistory     SerialHistory[]
-  rmas              Rma[]
-  rmaHistory        RmaHistory[]
-  serviceJobs       ServiceJob[]
-  serviceHistory    ServiceHistory[]
-  quotations        Quotation[]
-  quotationHistory  QuotationHistory[]
-  damages           Damage[]
-  expenses          Expense[]
-  expenseCategories ExpenseCategory[]
+  id                    String                 @id @default(cuid())
+  name                  String
+  slug                  String                 @unique
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  memberships           BusinessMembership[]
+  roles                 Role[]
+  sessions              LoginSession[]
+  auditLogs             AuditLog[]
+  categories            Category[]
+  subCategories         SubCategory[]
+  brands                Brand[]
+  units                 Unit[]
+  products              Product[]
+  customers             Customer[]
+  suppliers             Supplier[]
+  sequences             BusinessSequence[]
+  warehouses            Warehouse[]
+  stockMovements        StockMovement[]
+  stockBalances         StockBalance[]
+  stockAdjustments      StockAdjustment[]
+  serialItems           SerialItem[]
+  purchases             Purchase[]
+  sales                 Sale[]
+  invoices              Invoice[]
+  subscription          BusinessSubscription?
+  purchaseReturns       PurchaseReturn[]
+  saleReturns           SaleReturn[]
+  serialHistory         SerialHistory[]
+  rmas                  Rma[]
+  rmaHistory            RmaHistory[]
+  serviceJobs           ServiceJob[]
+  serviceHistory        ServiceHistory[]
+  quotations            Quotation[]
+  quotationHistory      QuotationHistory[]
+  damages               Damage[]
+  expenses              Expense[]
+  expenseCategories     ExpenseCategory[]
+  financialAccounts     FinancialAccount[]
+  financialTransactions FinancialTransaction[]
+  financialTransfers    FinancialTransfer[]
 
   @@index([createdAt])
 }
@@ -1444,4 +1480,89 @@ model Expense {
   @@index([businessId, status, expenseDate])
   @@index([businessId, categoryId, expenseDate])
   @@index([businessId, paymentMethod])
+}
+
+model FinancialAccount {
+  id            String                 @id @default(cuid())
+  businessId    String
+  accountCode   String
+  name          String
+  type          FinancialAccountType
+  description   String?
+  bankName      String?
+  accountHolder String?
+  accountNumber String?
+  branch        String?
+  mobileNumber  String?
+  isActive      Boolean                @default(true)
+  createdById   String
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  business      Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy     User                   @relation("FinancialAccountCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  transactions  FinancialTransaction[]
+  transfersOut  FinancialTransfer[]    @relation("TransferSourceAccount")
+  transfersIn   FinancialTransfer[]    @relation("TransferDestinationAccount")
+
+  @@unique([businessId, accountCode])
+  @@unique([businessId, name])
+  @@index([businessId, type, isActive])
+  @@index([businessId, createdAt])
+}
+
+model FinancialTransaction {
+  id              String                     @id @default(cuid())
+  businessId      String
+  accountId       String
+  transferId      String?
+  transactionNo   String
+  type            FinancialTransactionType
+  direction       FinancialDirection
+  status          FinancialTransactionStatus @default(POSTED)
+  amount          Decimal                    @db.Decimal(18, 2)
+  transactionDate DateTime
+  description     String
+  counterparty    String?
+  reference       String?
+  notes           String?
+  sourceType      String?
+  sourceId        String?
+  createdById     String
+  postedAt        DateTime                   @default(now())
+  createdAt       DateTime                   @default(now())
+  account         FinancialAccount           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  business        Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  transfer        FinancialTransfer?         @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  createdBy       User                       @relation("FinancialTransactionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, transactionNo])
+  @@index([businessId, accountId, transactionDate, createdAt])
+  @@index([businessId, type, direction])
+  @@index([businessId, status, transactionDate])
+  @@index([businessId, sourceType, sourceId])
+}
+
+model FinancialTransfer {
+  id                   String                 @id @default(cuid())
+  businessId           String
+  transferNo           String
+  sourceAccountId      String
+  destinationAccountId String
+  amount               Decimal                @db.Decimal(18, 2)
+  transferDate         DateTime
+  reference            String?
+  notes                String?
+  createdById          String
+  postedAt             DateTime               @default(now())
+  createdAt            DateTime               @default(now())
+  business             Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sourceAccount        FinancialAccount       @relation("TransferSourceAccount", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount   FinancialAccount       @relation("TransferDestinationAccount", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  createdBy            User                   @relation("FinancialTransferCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  transactions         FinancialTransaction[]
+
+  @@unique([businessId, transferNo])
+  @@index([businessId, transferDate])
+  @@index([businessId, sourceAccountId])
+  @@index([businessId, destinationAccountId])
 }

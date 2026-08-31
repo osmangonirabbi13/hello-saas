@@ -150,13 +150,13 @@ export const navigation: NavigationItem[] = [
   },
   {
     id: 'finance',
-    label: 'Bank Accounts',
+    label: 'Financial Accounts',
     icon: Banknote,
     children: [
-      child('accounts', 'Bank Accounts', '/finance/accounts', 'finance.account.read'),
-      child('transfers', 'Balance Transfer', '/finance/transfers', 'finance.transfer.create'),
+      child('accounts', 'Accounts', '/finance/accounts', 'financial_account.read'),
+      child('transfers', 'Transfers', '/finance/transfers', 'financial_transfer.read'),
       child('cheques', 'Cheque', '/finance/cheques', 'cheque.read'),
-      child('transactions', 'Transactions', '/finance/transactions', 'finance.transaction.read'),
+      child('transactions', 'Transactions', '/finance/transactions', 'financial_transaction.read'),
     ],
   },
   {

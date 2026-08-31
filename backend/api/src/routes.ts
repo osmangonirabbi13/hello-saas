@@ -26,6 +26,11 @@ import {
   createExpenseCategoryRouter,
   createExpenseRouter,
 } from './modules/expense/expense.routes.js';
+import {
+  createFinancialAccountRouter,
+  createFinancialTransactionRouter,
+  createFinancialTransferRouter,
+} from './modules/finance/finance.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -100,6 +105,18 @@ export function createApiRouter(dependencies: {
   router.use(
     '/expense-categories',
     createExpenseCategoryRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/financial-accounts',
+    createFinancialAccountRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/financial-transactions',
+    createFinancialTransactionRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/financial-transfers',
+    createFinancialTransferRouter(dependencies.authService, dependencies.authRepository),
   );
   return router;
 }

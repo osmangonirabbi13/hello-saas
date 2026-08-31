@@ -11,7 +11,8 @@ export type Capability =
   | 'sales.post'
   | 'pos.checkout'
   | 'inventory.adjust'
-  | 'serial.mutate';
+  | 'serial.mutate'
+  | 'finance.mutate';
 const policy: Record<Capability, 'OFFLINE_SAFE' | 'ONLINE_REQUIRED'> = {
   'products.create': 'OFFLINE_SAFE',
   'products.update': 'OFFLINE_SAFE',
@@ -26,5 +27,6 @@ const policy: Record<Capability, 'OFFLINE_SAFE' | 'ONLINE_REQUIRED'> = {
   'pos.checkout': 'ONLINE_REQUIRED',
   'inventory.adjust': 'ONLINE_REQUIRED',
   'serial.mutate': 'ONLINE_REQUIRED',
+  'finance.mutate': 'ONLINE_REQUIRED',
 };
 export const offlineCapability = (capability: Capability) => policy[capability];
