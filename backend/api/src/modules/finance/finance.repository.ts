@@ -8,6 +8,7 @@ import type {
 } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
 import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
+import { postFinancialTransactionAccounting, postFinancialTransferAccounting } from '../accounting/source-accounting.service.js';
 
 const accountSelect = {
   id: true,
@@ -21,6 +22,8 @@ const accountSelect = {
   branch: true,
   mobileNumber: true,
   isActive: true,
+  chartAccountId: true,
+  chartAccount: { select: { id: true, code: true, name: true, accountType: true, isActive: true } },
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -327,6 +330,7 @@ export class FinanceRepository {
             metadata: { transactionNo, accountId: account.id },
           },
         });
+        await postFinancialTransactionAccounting(tx, businessId, userId, transaction, input.offsetAccountId);
         return transaction;
       },
     });
@@ -427,6 +431,7 @@ export class FinanceRepository {
             },
           },
         });
+        await postFinancialTransferAccounting(tx, businessId, userId, transfer);
         return tx.financialTransfer.findUniqueOrThrow({
           where: { id: transfer.id },
           include: transferInclude,

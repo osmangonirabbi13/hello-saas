@@ -2,6 +2,7 @@ import { prisma } from '@hello-shop/database';
 import type { Prisma, PurchaseReturnReason, SaleReturnReason } from '@hello-shop/database';
 import type { PurchaseReturnInput, SaleReturnInput } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
+import { postPurchaseReturnAccounting, postSaleReturnAccounting } from '../accounting/source-accounting.service.js';
 import type { ReturnPoster } from './return.types.js';
 
 const purchaseInclude = {
@@ -570,6 +571,7 @@ export class ReturnRepository {
             metadata: { returnNumber: item.returnNumber, purchaseId: item.purchaseId },
           },
         });
+        await postPurchaseReturnAccounting(tx, businessId, userId, item);
         return tx.purchaseReturn.findFirstOrThrow({
           where: { id, businessId },
           include: purchaseInclude,
@@ -664,6 +666,7 @@ export class ReturnRepository {
             metadata: { returnNumber: item.returnNumber, saleId: item.saleId },
           },
         });
+        await postSaleReturnAccounting(tx, businessId, userId, item);
         return tx.saleReturn.findFirstOrThrow({ where: { id, businessId }, include: saleInclude });
       },
       { isolationLevel: 'Serializable' },

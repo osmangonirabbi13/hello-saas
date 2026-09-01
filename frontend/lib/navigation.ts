@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
+  BookOpenText,
   Barcode,
   Boxes,
   BriefcaseBusiness,
@@ -164,6 +165,23 @@ export const navigation: NavigationItem[] = [
     label: 'Investment',
     icon: HandCoins,
     children: [child('investors', 'Investor List', '/investments/investors', 'investment.read')],
+  },
+  {
+    id: 'accounting',
+    label: 'Accounting',
+    icon: BookOpenText,
+    children: [
+      child('accounting-overview', 'Overview', '/accounting', 'accounting.read'),
+      child('accounting-coa', 'Chart of Accounts', '/accounting/chart-of-accounts', 'coa.read'),
+      child('accounting-journals', 'Journals', '/accounting/journals', 'journal.read'),
+      child('accounting-ledger', 'General Ledger', '/accounting/general-ledger', 'accounting_report.general_ledger'),
+      child('accounting-receivables', 'Receivables', '/accounting/receivables', 'receivable.read'),
+      child('accounting-payables', 'Payables', '/accounting/payables', 'payable.read'),
+      child('accounting-trial', 'Trial Balance', '/accounting/trial-balance', 'accounting_report.trial_balance'),
+      child('accounting-pnl', 'Profit & Loss', '/accounting/profit-loss', 'accounting_report.pnl'),
+      child('accounting-periods', 'Fiscal Periods', '/accounting/fiscal-periods', 'fiscal_period.read'),
+      child('accounting-settings', 'Settings', '/accounting/settings', 'accounting.read'),
+    ],
   },
   {
     id: 'hr',

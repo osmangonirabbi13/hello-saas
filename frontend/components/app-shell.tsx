@@ -42,15 +42,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const [context, setContext] = useState<AuthenticatedContext | null>(null);
-  const demoMode =
-    process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || process.env.NODE_ENV === 'development';
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   useEffect(() => {
     const token = sessionStorage.getItem('hello_shop_access');
-    if (!token && !demoMode) {
-      router.replace('/login');
-      return;
-    }
     setCollapsed(localStorage.getItem('hello_shop_sidebar') === 'collapsed');
+    let cancelled = false;
     try {
       const stored = JSON.parse(
         sessionStorage.getItem('hello_shop_permissions') ?? '[]',
@@ -60,34 +56,60 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (token) {
         void loadAuthenticatedContext(token)
           .then((value) => {
+            if (cancelled) return;
             setContext(value);
             setPermissions(value.membership.permissions);
+            setReady(true);
           })
           .catch(() => {
-            if (demoMode)
+            if (cancelled) return;
+            sessionStorage.removeItem('hello_shop_access');
+            sessionStorage.removeItem('hello_shop_permissions');
+            if (demoMode) {
               setContext({
                 ...DEMO_AUTHENTICATED_CONTEXT,
                 membership: { ...DEMO_AUTHENTICATED_CONTEXT.membership, permissions: resolved },
               });
+              setReady(true);
+            } else {
+              router.replace('/login?reason=session-expired');
+            }
           });
       } else if (demoMode) {
         setContext({
           ...DEMO_AUTHENTICATED_CONTEXT,
           membership: { ...DEMO_AUTHENTICATED_CONTEXT.membership, permissions: resolved },
         });
+        setReady(true);
+      } else {
+        router.replace('/login');
       }
     } catch {
-      setPermissions(demoMode ? [...BUSINESS_PERMISSIONS_FIXTURE] : []);
+      sessionStorage.removeItem('hello_shop_permissions');
+      if (demoMode) {
+        const resolved = [...BUSINESS_PERMISSIONS_FIXTURE];
+        setPermissions(resolved);
+        setContext({
+          ...DEMO_AUTHENTICATED_CONTEXT,
+          membership: { ...DEMO_AUTHENTICATED_CONTEXT.membership, permissions: resolved },
+        });
+        setReady(true);
+      } else {
+        router.replace('/login');
+      }
     }
-    setReady(true);
+    return () => {
+      cancelled = true;
+    };
   }, [demoMode, router]);
   const items = useMemo(() => visibleNavigation(new Set(permissions)), [permissions]);
   const activeContext = context ?? DEMO_AUTHENTICATED_CONTEXT;
   const offlineScope = { userId: activeContext.user.id, businessRef: activeContext.business.id };
   useEffect(() => {
+    if (!context) return;
     sessionStorage.setItem('hello_shop_offline_scope', JSON.stringify(offlineScope));
     void hydrateOfflineReferences(offlineScope);
-  }, [offlineScope.businessRef, offlineScope.userId]);
+  }, [context, offlineScope.businessRef, offlineScope.userId]);
   function toggleSidebar() {
     const next = !collapsed;
     setCollapsed(next);

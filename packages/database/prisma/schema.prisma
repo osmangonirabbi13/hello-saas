@@ -128,6 +128,75 @@ enum FinancialTransactionStatus {
   CANCELLED
 }
 
+enum AccountingAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AccountingNormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum AccountingSystemKey {
+  CASH_AND_BANK
+  ACCOUNTS_RECEIVABLE
+  INVENTORY
+  INPUT_VAT
+  OTHER_CURRENT_ASSET
+  ACCOUNTS_PAYABLE
+  EXPENSE_PAYABLE
+  VAT_PAYABLE
+  OTHER_CURRENT_LIABILITY
+  OWNER_CAPITAL
+  RETAINED_EARNINGS
+  OPENING_BALANCE_EQUITY
+  SALES_REVENUE
+  SERVICE_REVENUE
+  OTHER_INCOME
+  SALES_RETURN
+  COGS
+  INVENTORY_DAMAGE_LOSS
+  RENT_EXPENSE
+  UTILITY_EXPENSE
+  MARKETING_EXPENSE
+  DELIVERY_EXPENSE
+  OTHER_EXPENSE
+}
+
+enum FiscalPeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum OpenItemStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PartyCreditKind {
+  CUSTOMER_CREDIT
+  SUPPLIER_CREDIT
+}
+
+enum PartyCreditStatus {
+  AVAILABLE
+  PARTIALLY_APPLIED
+  APPLIED
+  CANCELLED
+}
+
 enum PurchaseStatus {
   DRAFT
   POSTED
@@ -318,51 +387,67 @@ model User {
   financialAccounts      FinancialAccount[]     @relation("FinancialAccountCreator")
   financialTransactions  FinancialTransaction[] @relation("FinancialTransactionCreator")
   financialTransfers     FinancialTransfer[]    @relation("FinancialTransferCreator")
+  chartAccountsCreated   ChartAccount[]         @relation("ChartAccountCreator")
+  journalsCreated        JournalEntry[]         @relation("JournalCreator")
+  journalsPosted         JournalEntry[]         @relation("JournalPoster")
 }
 
 model Business {
-  id                    String                 @id @default(cuid())
-  name                  String
-  slug                  String                 @unique
-  isActive              Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  memberships           BusinessMembership[]
-  roles                 Role[]
-  sessions              LoginSession[]
-  auditLogs             AuditLog[]
-  categories            Category[]
-  subCategories         SubCategory[]
-  brands                Brand[]
-  units                 Unit[]
-  products              Product[]
-  customers             Customer[]
-  suppliers             Supplier[]
-  sequences             BusinessSequence[]
-  warehouses            Warehouse[]
-  stockMovements        StockMovement[]
-  stockBalances         StockBalance[]
-  stockAdjustments      StockAdjustment[]
-  serialItems           SerialItem[]
-  purchases             Purchase[]
-  sales                 Sale[]
-  invoices              Invoice[]
-  subscription          BusinessSubscription?
-  purchaseReturns       PurchaseReturn[]
-  saleReturns           SaleReturn[]
-  serialHistory         SerialHistory[]
-  rmas                  Rma[]
-  rmaHistory            RmaHistory[]
-  serviceJobs           ServiceJob[]
-  serviceHistory        ServiceHistory[]
-  quotations            Quotation[]
-  quotationHistory      QuotationHistory[]
-  damages               Damage[]
-  expenses              Expense[]
-  expenseCategories     ExpenseCategory[]
-  financialAccounts     FinancialAccount[]
-  financialTransactions FinancialTransaction[]
-  financialTransfers    FinancialTransfer[]
+  id                     String                  @id @default(cuid())
+  name                   String
+  slug                   String                  @unique
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  memberships            BusinessMembership[]
+  roles                  Role[]
+  sessions               LoginSession[]
+  auditLogs              AuditLog[]
+  categories             Category[]
+  subCategories          SubCategory[]
+  brands                 Brand[]
+  units                  Unit[]
+  products               Product[]
+  customers              Customer[]
+  suppliers              Supplier[]
+  sequences              BusinessSequence[]
+  warehouses             Warehouse[]
+  stockMovements         StockMovement[]
+  stockBalances          StockBalance[]
+  stockAdjustments       StockAdjustment[]
+  serialItems            SerialItem[]
+  purchases              Purchase[]
+  sales                  Sale[]
+  invoices               Invoice[]
+  subscription           BusinessSubscription?
+  purchaseReturns        PurchaseReturn[]
+  saleReturns            SaleReturn[]
+  serialHistory          SerialHistory[]
+  rmas                   Rma[]
+  rmaHistory             RmaHistory[]
+  serviceJobs            ServiceJob[]
+  serviceHistory         ServiceHistory[]
+  quotations             Quotation[]
+  quotationHistory       QuotationHistory[]
+  damages                Damage[]
+  expenses               Expense[]
+  expenseCategories      ExpenseCategory[]
+  financialAccounts      FinancialAccount[]
+  financialTransactions  FinancialTransaction[]
+  financialTransfers     FinancialTransfer[]
+  accountingSettings     AccountingSettings?
+  chartAccounts          ChartAccount[]
+  fiscalPeriods          FiscalPeriod[]
+  journalEntries         JournalEntry[]
+  journalLines           JournalLine[]
+  receivableItems        ReceivableItem[]
+  receivableAllocations  ReceivableAllocation[]
+  payableItems           PayableItem[]
+  payableAllocations     PayableAllocation[]
+  partyCredits           PartyCredit[]
+  creditApplications     PartyCreditApplication[]
+  inventoryCostStates    InventoryCostState[]
+  inventoryCostMovements InventoryCostMovement[]
 
   @@index([createdAt])
 }
@@ -460,53 +545,56 @@ model Unit {
 }
 
 model Product {
-  id                  String                @id @default(cuid())
-  businessId          String
-  name                String
-  slug                String
-  sku                 String
-  barcode             String?
-  categoryId          String
-  subCategoryId       String?
-  brandId             String?
-  unitId              String
-  description         String?
-  purchasePrice       Decimal               @db.Decimal(18, 2)
-  salePrice           Decimal               @db.Decimal(18, 2)
-  dealerPrice         Decimal?              @db.Decimal(18, 2)
-  minimumSalePrice    Decimal?              @db.Decimal(18, 2)
-  trackStock          Boolean               @default(true)
-  serialized          Boolean               @default(false)
-  reorderLevel        Decimal               @default(0) @db.Decimal(18, 3)
-  allowNegativeStock  Boolean               @default(false)
-  warrantyEnabled     Boolean               @default(false)
-  warrantyDuration    Int?
-  warrantyUnit        WarrantyUnit?
-  primaryImageUrl     String?
-  isActive            Boolean               @default(true)
-  createdById         String
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  version             Int                   @default(1)
-  business            Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  category            Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  subCategory         SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
-  brand               Brand?                @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  unit                Unit                  @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  createdBy           User                  @relation("ProductCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  stockMovements      StockMovement[]
-  stockBalances       StockBalance[]
-  adjustmentLines     StockAdjustmentLine[]
-  serialItems         SerialItem[]
-  purchaseLines       PurchaseLine[]
-  saleLines           SaleLine[]
-  purchaseReturnLines PurchaseReturnLine[]
-  saleReturnLines     SaleReturnLine[]
-  rmas                Rma[]
-  serviceJobs         ServiceJob[]
-  serviceParts        ServicePart[]
-  quotationLines      QuotationLine[]
-  damageLines         DamageLine[]
+  id                     String                  @id @default(cuid())
+  businessId             String
+  name                   String
+  slug                   String
+  sku                    String
+  barcode                String?
+  categoryId             String
+  subCategoryId          String?
+  brandId                String?
+  unitId                 String
+  description            String?
+  purchasePrice          Decimal                 @db.Decimal(18, 2)
+  salePrice              Decimal                 @db.Decimal(18, 2)
+  dealerPrice            Decimal?                @db.Decimal(18, 2)
+  minimumSalePrice       Decimal?                @db.Decimal(18, 2)
+  trackStock             Boolean                 @default(true)
+  serialized             Boolean                 @default(false)
+  reorderLevel           Decimal                 @default(0) @db.Decimal(18, 3)
+  allowNegativeStock     Boolean                 @default(false)
+  warrantyEnabled        Boolean                 @default(false)
+  warrantyDuration       Int?
+  warrantyUnit           WarrantyUnit?
+  primaryImageUrl        String?
+  isActive               Boolean                 @default(true)
+  createdById            String
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  version                Int                     @default(1)
+  business               Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  category               Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory            SubCategory?            @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
+  brand                  Brand?                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  unit                   Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdBy              User                    @relation("ProductCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  stockMovements         StockMovement[]
+  stockBalances          StockBalance[]
+  adjustmentLines        StockAdjustmentLine[]
+  serialItems            SerialItem[]
+  purchaseLines          PurchaseLine[]
+  saleLines              SaleLine[]
+  purchaseReturnLines    PurchaseReturnLine[]
+  saleReturnLines        SaleReturnLine[]
+  rmas                   Rma[]
+  serviceJobs            ServiceJob[]
+  serviceParts           ServicePart[]
+  quotationLines         QuotationLine[]
+  damageLines            DamageLine[]
+  journalLines           JournalLine[]
+  inventoryCostStates    InventoryCostState[]
+  inventoryCostMovements InventoryCostMovement[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -517,28 +605,30 @@ model Product {
 }
 
 model Warehouse {
-  id              String            @id @default(cuid())
-  businessId      String
-  name            String
-  code            String
-  description     String?
-  address         String?
-  isDefault       Boolean           @default(false)
-  isActive        Boolean           @default(true)
-  createdById     String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  business        Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  createdBy       User              @relation("WarehouseCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  movements       StockMovement[]
-  balances        StockBalance[]
-  adjustments     StockAdjustment[]
-  serialItems     SerialItem[]
-  purchases       Purchase[]
-  sales           Sale[]
-  purchaseReturns PurchaseReturn[]
-  saleReturns     SaleReturn[]
-  damages         Damage[]
+  id                     String                  @id @default(cuid())
+  businessId             String
+  name                   String
+  code                   String
+  description            String?
+  address                String?
+  isDefault              Boolean                 @default(false)
+  isActive               Boolean                 @default(true)
+  createdById            String
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  business               Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy              User                    @relation("WarehouseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  movements              StockMovement[]
+  balances               StockBalance[]
+  adjustments            StockAdjustment[]
+  serialItems            SerialItem[]
+  purchases              Purchase[]
+  sales                  Sale[]
+  purchaseReturns        PurchaseReturn[]
+  saleReturns            SaleReturn[]
+  damages                Damage[]
+  inventoryCostStates    InventoryCostState[]
+  inventoryCostMovements InventoryCostMovement[]
 
   @@unique([businessId, code])
   @@index([businessId, isActive])
@@ -546,23 +636,24 @@ model Warehouse {
 }
 
 model StockMovement {
-  id            String            @id @default(cuid())
+  id            String                 @id @default(cuid())
   businessId    String
   warehouseId   String
   productId     String
   type          StockMovementType
-  quantity      Decimal           @db.Decimal(18, 3)
+  quantity      Decimal                @db.Decimal(18, 3)
   referenceType String?
   referenceId   String?
-  unitCost      Decimal?          @db.Decimal(18, 2)
+  unitCost      Decimal?               @db.Decimal(18, 2)
   note          String?
-  occurredAt    DateTime          @default(now())
+  occurredAt    DateTime               @default(now())
   createdById   String
-  createdAt     DateTime          @default(now())
-  business      Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  product       Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
-  createdBy     User              @relation("StockMovementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime               @default(now())
+  business      Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product       Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy     User                   @relation("StockMovementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  costMovement  InventoryCostMovement?
 
   @@index([businessId, productId])
   @@index([businessId, warehouseId])
@@ -689,6 +780,7 @@ model Purchase {
   lines                 PurchaseLine[]
   serialItems           SerialItem[]
   returns               PurchaseReturn[]
+  payable               PayableItem?
 
   @@unique([businessId, purchaseNumber])
   @@index([businessId, status])
@@ -730,45 +822,46 @@ model BusinessSequence {
 }
 
 model Sale {
-  id              String       @id @default(cuid())
+  id              String          @id @default(cuid())
   businessId      String
   saleNumber      String
   invoiceNumber   String
   customerId      String?
   warehouseId     String
-  type            SaleType     @default(REGULAR)
+  type            SaleType        @default(REGULAR)
   saleDate        DateTime
   dueDate         DateTime?
   reference       String?
-  subtotal        Decimal      @db.Decimal(18, 2)
-  discountAmount  Decimal      @default(0) @db.Decimal(18, 2)
-  additionalCost  Decimal      @default(0) @db.Decimal(18, 2)
-  taxAmount       Decimal      @default(0) @db.Decimal(18, 2)
-  grandTotal      Decimal      @db.Decimal(18, 2)
-  paidAmount      Decimal      @default(0) @db.Decimal(18, 2)
-  dueAmount       Decimal      @db.Decimal(18, 2)
+  subtotal        Decimal         @db.Decimal(18, 2)
+  discountAmount  Decimal         @default(0) @db.Decimal(18, 2)
+  additionalCost  Decimal         @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal         @default(0) @db.Decimal(18, 2)
+  grandTotal      Decimal         @db.Decimal(18, 2)
+  paidAmount      Decimal         @default(0) @db.Decimal(18, 2)
+  dueAmount       Decimal         @db.Decimal(18, 2)
   note            String?
-  status          SaleStatus   @default(DRAFT)
+  status          SaleStatus      @default(DRAFT)
   createdById     String
   postedById      String?
   postedAt        DateTime?
   cancelledById   String?
   cancelledAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  version         Int          @default(1)
-  business        Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  warehouse       Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  createdBy       User         @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  postedBy        User?        @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
-  cancelledBy     User?        @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  version         Int             @default(1)
+  business        Business        @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy       User            @relation("SaleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy        User?           @relation("SalePoster", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy     User?           @relation("SaleCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
   lines           SaleLine[]
   serialItems     SerialItem[]
   invoice         Invoice?
   returns         SaleReturn[]
   rmas            Rma[]
-  sourceQuotation Quotation?   @relation("ConvertedQuotation")
+  sourceQuotation Quotation?      @relation("ConvertedQuotation")
+  receivable      ReceivableItem?
 
   @@unique([businessId, saleNumber])
   @@unique([businessId, invoiceNumber])
@@ -1054,6 +1147,8 @@ model Customer {
   rmas        Rma[]
   serviceJobs ServiceJob[]
   quotations  Quotation[]
+  receivables ReceivableItem[]
+  accountingCredits PartyCredit[]
 
   @@unique([businessId, customerCode])
   @@index([businessId])
@@ -1092,6 +1187,8 @@ model Supplier {
   purchases      Purchase[]
   returns        PurchaseReturn[]
   rmas           Rma[]
+  payables       PayableItem[]
+  accountingCredits PartyCredit[]
 
   @@unique([businessId, supplierCode])
   @@index([businessId])
@@ -1436,20 +1533,23 @@ model DamageSerial {
 }
 
 model ExpenseCategory {
-  id          String    @id @default(cuid())
-  businessId  String
-  name        String
-  description String?
-  isActive    Boolean   @default(true)
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  business    Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  createdBy   User      @relation("ExpenseCategoryCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  expenses    Expense[]
+  id             String        @id @default(cuid())
+  businessId     String
+  name           String
+  description    String?
+  chartAccountId String?
+  isActive       Boolean       @default(true)
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  business       Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User          @relation("ExpenseCategoryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  expenses       Expense[]
+  chartAccount   ChartAccount? @relation(fields: [chartAccountId], references: [id], onDelete: Restrict)
 
   @@unique([businessId, name])
   @@index([businessId, isActive])
+  @@index([businessId, chartAccountId])
 }
 
 model Expense {
@@ -1483,57 +1583,63 @@ model Expense {
 }
 
 model FinancialAccount {
-  id            String                 @id @default(cuid())
-  businessId    String
-  accountCode   String
-  name          String
-  type          FinancialAccountType
-  description   String?
-  bankName      String?
-  accountHolder String?
-  accountNumber String?
-  branch        String?
-  mobileNumber  String?
-  isActive      Boolean                @default(true)
-  createdById   String
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  business      Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  createdBy     User                   @relation("FinancialAccountCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  transactions  FinancialTransaction[]
-  transfersOut  FinancialTransfer[]    @relation("TransferSourceAccount")
-  transfersIn   FinancialTransfer[]    @relation("TransferDestinationAccount")
+  id             String                 @id @default(cuid())
+  businessId     String
+  accountCode    String
+  name           String
+  type           FinancialAccountType
+  description    String?
+  bankName       String?
+  accountHolder  String?
+  accountNumber  String?
+  branch         String?
+  mobileNumber   String?
+  chartAccountId String?
+  isActive       Boolean                @default(true)
+  createdById    String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  business       Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy      User                   @relation("FinancialAccountCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  transactions   FinancialTransaction[]
+  chartAccount   ChartAccount?          @relation(fields: [chartAccountId], references: [id], onDelete: Restrict)
+  journalLines   JournalLine[]
+  transfersOut   FinancialTransfer[]    @relation("TransferSourceAccount")
+  transfersIn    FinancialTransfer[]    @relation("TransferDestinationAccount")
 
   @@unique([businessId, accountCode])
   @@unique([businessId, name])
   @@index([businessId, type, isActive])
   @@index([businessId, createdAt])
+  @@index([businessId, chartAccountId])
 }
 
 model FinancialTransaction {
-  id              String                     @id @default(cuid())
-  businessId      String
-  accountId       String
-  transferId      String?
-  transactionNo   String
-  type            FinancialTransactionType
-  direction       FinancialDirection
-  status          FinancialTransactionStatus @default(POSTED)
-  amount          Decimal                    @db.Decimal(18, 2)
-  transactionDate DateTime
-  description     String
-  counterparty    String?
-  reference       String?
-  notes           String?
-  sourceType      String?
-  sourceId        String?
-  createdById     String
-  postedAt        DateTime                   @default(now())
-  createdAt       DateTime                   @default(now())
-  account         FinancialAccount           @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  business        Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  transfer        FinancialTransfer?         @relation(fields: [transferId], references: [id], onDelete: Restrict)
-  createdBy       User                       @relation("FinancialTransactionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  id                   String                     @id @default(cuid())
+  businessId           String
+  accountId            String
+  transferId           String?
+  transactionNo        String
+  type                 FinancialTransactionType
+  direction            FinancialDirection
+  status               FinancialTransactionStatus @default(POSTED)
+  amount               Decimal                    @db.Decimal(18, 2)
+  transactionDate      DateTime
+  description          String
+  counterparty         String?
+  reference            String?
+  notes                String?
+  sourceType           String?
+  sourceId             String?
+  createdById          String
+  postedAt             DateTime                   @default(now())
+  createdAt            DateTime                   @default(now())
+  account              FinancialAccount           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  business             Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  transfer             FinancialTransfer?         @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  createdBy            User                       @relation("FinancialTransactionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  receivableAllocation ReceivableAllocation?
+  payableAllocation    PayableAllocation?
 
   @@unique([businessId, transactionNo])
   @@index([businessId, accountId, transactionDate, createdAt])
@@ -1565,4 +1671,304 @@ model FinancialTransfer {
   @@index([businessId, transferDate])
   @@index([businessId, sourceAccountId])
   @@index([businessId, destinationAccountId])
+}
+
+model ChartAccount {
+  id                 String                  @id @default(cuid())
+  businessId         String
+  code               String
+  name               String
+  accountType        AccountingAccountType
+  accountSubType     String?
+  normalBalance      AccountingNormalBalance
+  systemKey          AccountingSystemKey?
+  parentId           String?
+  description        String?
+  isSystem           Boolean                 @default(false)
+  allowManualPosting Boolean                 @default(true)
+  isActive           Boolean                 @default(true)
+  createdById        String
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  business           Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy          User                    @relation("ChartAccountCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  parent             ChartAccount?           @relation("ChartAccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children           ChartAccount[]          @relation("ChartAccountHierarchy")
+  financialAccounts  FinancialAccount[]
+  expenseCategories  ExpenseCategory[]
+  journalLines       JournalLine[]
+
+  @@unique([businessId, code])
+  @@unique([businessId, systemKey])
+  @@index([businessId, accountType, isActive])
+  @@index([businessId, parentId])
+}
+
+model AccountingSettings {
+  id                            String   @id @default(cuid())
+  businessId                    String   @unique
+  accountingEnabled             Boolean  @default(false)
+  fiscalYearStartMonth          Int      @default(1)
+  receivableAccountId           String?
+  payableAccountId              String?
+  expensePayableAccountId       String?
+  inventoryAccountId            String?
+  salesRevenueAccountId         String?
+  serviceRevenueAccountId       String?
+  cogsAccountId                 String?
+  salesReturnAccountId          String?
+  damageLossAccountId           String?
+  inputVatAccountId             String?
+  outputVatAccountId            String?
+  openingBalanceEquityAccountId String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+  business                      Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+}
+
+model FiscalPeriod {
+  id         String             @id @default(cuid())
+  businessId String
+  name       String
+  startDate  DateTime
+  endDate    DateTime
+  status     FiscalPeriodStatus @default(OPEN)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  business   Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  journals   JournalEntry[]
+
+  @@unique([businessId, name])
+  @@index([businessId, status, startDate, endDate])
+}
+
+model JournalEntry {
+  id                    String                 @id @default(cuid())
+  businessId            String
+  journalNumber         String
+  date                  DateTime
+  memo                  String
+  status                JournalStatus          @default(DRAFT)
+  sourceType            String
+  sourceId              String
+  sourceEvent           String
+  fiscalPeriodId        String
+  createdById           String
+  postedById            String?
+  postedAt              DateTime?
+  reversalOfId          String?
+  reversedById          String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  business              Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  fiscalPeriod          FiscalPeriod           @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  createdBy             User                   @relation("JournalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy              User?                  @relation("JournalPoster", fields: [postedById], references: [id], onDelete: Restrict)
+  reversalOf            JournalEntry?          @relation("JournalReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversal              JournalEntry?          @relation("JournalReversal")
+  lines                 JournalLine[]
+  receivableAllocations ReceivableAllocation[]
+  payableAllocations    PayableAllocation[]
+  creditApplications    PartyCreditApplication[]
+
+  @@unique([businessId, journalNumber])
+  @@unique([businessId, sourceType, sourceId, sourceEvent])
+  @@unique([reversalOfId])
+  @@index([businessId, status, date])
+  @@index([businessId, fiscalPeriodId])
+}
+
+model JournalLine {
+  id                 String            @id @default(cuid())
+  businessId         String
+  journalEntryId     String
+  accountId          String
+  debit              Decimal           @default(0) @db.Decimal(18, 2)
+  credit             Decimal           @default(0) @db.Decimal(18, 2)
+  description        String?
+  customerId         String?
+  supplierId         String?
+  financialAccountId String?
+  productId          String?
+  sourceLineId       String?
+  createdAt          DateTime          @default(now())
+  business           Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  journalEntry       JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account            ChartAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  financialAccount   FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: Restrict)
+  product            Product?          @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, accountId, createdAt])
+  @@index([businessId, customerId])
+  @@index([businessId, supplierId])
+  @@index([businessId, productId])
+}
+
+model ReceivableItem {
+  id             String                 @id @default(cuid())
+  businessId     String
+  customerId     String?
+  saleId         String                 @unique
+  invoiceId      String?
+  originalAmount Decimal                @db.Decimal(18, 2)
+  settledAmount  Decimal                @default(0) @db.Decimal(18, 2)
+  dueDate        DateTime?
+  status         OpenItemStatus         @default(OPEN)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  business       Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer       Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sale           Sale                   @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  allocations    ReceivableAllocation[]
+  creditApplications PartyCreditApplication[]
+
+  @@index([businessId, status, dueDate])
+  @@index([businessId, customerId, status])
+}
+
+model ReceivableAllocation {
+  id                     String               @id @default(cuid())
+  businessId             String
+  receivableItemId       String
+  financialTransactionId String               @unique
+  journalEntryId         String               @unique
+  amount                 Decimal              @db.Decimal(18, 2)
+  allocatedAt            DateTime
+  createdAt              DateTime             @default(now())
+  business               Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  receivableItem         ReceivableItem       @relation(fields: [receivableItemId], references: [id], onDelete: Restrict)
+  financialTransaction   FinancialTransaction @relation(fields: [financialTransactionId], references: [id], onDelete: Restrict)
+  journalEntry           JournalEntry         @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, receivableItemId, allocatedAt])
+}
+
+model PayableItem {
+  id             String              @id @default(cuid())
+  businessId     String
+  supplierId     String
+  purchaseId     String              @unique
+  originalAmount Decimal             @db.Decimal(18, 2)
+  settledAmount  Decimal             @default(0) @db.Decimal(18, 2)
+  dueDate        DateTime?
+  status         OpenItemStatus      @default(OPEN)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  business       Business            @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  supplier       Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchase       Purchase            @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  allocations    PayableAllocation[]
+  creditApplications PartyCreditApplication[]
+
+  @@index([businessId, status, dueDate])
+  @@index([businessId, supplierId, status])
+}
+
+model PayableAllocation {
+  id                     String               @id @default(cuid())
+  businessId             String
+  payableItemId          String
+  financialTransactionId String               @unique
+  journalEntryId         String               @unique
+  amount                 Decimal              @db.Decimal(18, 2)
+  allocatedAt            DateTime
+  createdAt              DateTime             @default(now())
+  business               Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  payableItem            PayableItem          @relation(fields: [payableItemId], references: [id], onDelete: Restrict)
+  financialTransaction   FinancialTransaction @relation(fields: [financialTransactionId], references: [id], onDelete: Restrict)
+  journalEntry           JournalEntry         @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, payableItemId, allocatedAt])
+}
+
+model PartyCredit {
+  id            String            @id @default(cuid())
+  businessId    String
+  kind          PartyCreditKind
+  customerId    String?
+  supplierId    String?
+  sourceType    String
+  sourceId      String
+  documentNumber String
+  originalAmount Decimal          @db.Decimal(18, 2)
+  appliedAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  status         PartyCreditStatus @default(AVAILABLE)
+  occurredAt     DateTime
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer       Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  supplier       Supplier?         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  applications   PartyCreditApplication[]
+
+  @@unique([businessId, sourceType, sourceId])
+  @@index([businessId, kind, status, occurredAt])
+  @@index([businessId, customerId, status])
+  @@index([businessId, supplierId, status])
+}
+
+model PartyCreditApplication {
+  id               String         @id @default(cuid())
+  businessId       String
+  partyCreditId    String
+  receivableItemId String?
+  payableItemId    String?
+  journalEntryId   String         @unique
+  amount           Decimal        @db.Decimal(18, 2)
+  appliedAt        DateTime
+  sourceType       String
+  sourceId         String
+  createdAt        DateTime       @default(now())
+  business         Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  partyCredit      PartyCredit    @relation(fields: [partyCreditId], references: [id], onDelete: Restrict)
+  receivableItem   ReceivableItem? @relation(fields: [receivableItemId], references: [id], onDelete: Restrict)
+  payableItem      PayableItem?   @relation(fields: [payableItemId], references: [id], onDelete: Restrict)
+  journalEntry     JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, sourceType, sourceId])
+  @@index([businessId, partyCreditId, appliedAt])
+  @@index([businessId, receivableItemId])
+  @@index([businessId, payableItemId])
+}
+
+model InventoryCostState {
+  id              String    @id @default(cuid())
+  businessId      String
+  warehouseId     String
+  productId       String
+  quantity        Decimal   @default(0) @db.Decimal(18, 3)
+  totalCost       Decimal   @default(0) @db.Decimal(18, 2)
+  averageUnitCost Decimal   @default(0) @db.Decimal(18, 6)
+  updatedAt       DateTime  @updatedAt
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, warehouseId, productId])
+  @@index([businessId, productId])
+}
+
+model InventoryCostMovement {
+  id              String        @id @default(cuid())
+  businessId      String
+  warehouseId     String
+  productId       String
+  stockMovementId String        @unique
+  quantityDelta   Decimal       @db.Decimal(18, 3)
+  unitCost        Decimal       @db.Decimal(18, 6)
+  totalCostDelta  Decimal       @db.Decimal(18, 2)
+  costBefore      Decimal       @db.Decimal(18, 2)
+  costAfter       Decimal       @db.Decimal(18, 2)
+  averageBefore   Decimal       @db.Decimal(18, 6)
+  averageAfter    Decimal       @db.Decimal(18, 6)
+  sourceType      String
+  sourceId        String
+  createdAt       DateTime      @default(now())
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stockMovement   StockMovement @relation(fields: [stockMovementId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, warehouseId, productId, createdAt])
+  @@index([businessId, sourceType, sourceId])
 }

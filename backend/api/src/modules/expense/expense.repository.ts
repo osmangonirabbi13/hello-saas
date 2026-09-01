@@ -2,6 +2,7 @@ import { Prisma, prisma } from '@hello-shop/database';
 import type { ExpensePaymentMethod, ExpenseStatus } from '@hello-shop/database';
 import type { ExpenseCategoryCreateInput, ExpenseCategoryUpdateInput, ExpenseInput } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
+import { postExpenseAccounting } from '../accounting/source-accounting.service.js';
 
 const include = {
   business: { select: { name: true } },
@@ -209,6 +210,7 @@ export class ExpenseRepository {
             entityId: id,
           },
         });
+        await postExpenseAccounting(tx, businessId, userId, existing);
         return tx.expense.findUniqueOrThrow({ where: { id }, include });
       },
       { isolationLevel: 'Serializable' },

@@ -31,6 +31,7 @@ import {
   createFinancialTransactionRouter,
   createFinancialTransferRouter,
 } from './modules/finance/finance.routes.js';
+import { createAccountingRouter } from './modules/accounting/accounting.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -117,6 +118,10 @@ export function createApiRouter(dependencies: {
   router.use(
     '/financial-transfers',
     createFinancialTransferRouter(dependencies.authService, dependencies.authRepository),
+  );
+  router.use(
+    '/accounting',
+    createAccountingRouter(dependencies.authService, dependencies.authRepository),
   );
   return router;
 }

@@ -6,6 +6,14 @@ describe('Damage editor UX', () => {
     resolve(process.cwd(), 'components/damage/damage-editor.tsx'),
     'utf8',
   );
+  it('uses the shared FieldLabel named export boundary', () => {
+    const primitives = readFileSync(
+      resolve(process.cwd(), 'components/ui/primitives.tsx'),
+      'utf8',
+    );
+    expect(source).toMatch(/FieldLabel[\s\S]*from '@\/components\/ui\/primitives'/);
+    expect(primitives).toContain('export function FieldLabel');
+  });
   it('reuses scanner helpers and provides Enter/clear/refocus feedback', () => {
     expect(source).toContain('applyProductScan');
     expect(source).toContain("e.key === 'Enter'");

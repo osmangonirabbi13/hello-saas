@@ -32,6 +32,8 @@ export type FinancialAccount = {
   mobileNumber: string | null;
   isActive: boolean;
   balance: string;
+  chartAccountId: string | null;
+  chartAccount: { id: string; code: string; name: string; accountType: string; isActive: boolean } | null;
 };
 export type FinancialTransaction = {
   id: string;

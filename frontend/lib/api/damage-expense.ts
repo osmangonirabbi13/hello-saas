@@ -18,6 +18,12 @@ async function call<T>(path: string, init?: RequestInit) {
     },
   });
   const p = (await r.json()) as { data?: T; error?: { message?: string } };
+  if (r.status === 401) {
+    sessionStorage.removeItem('hello_shop_access');
+    sessionStorage.removeItem('hello_shop_permissions');
+    window.location.assign('/login?reason=session-expired');
+    throw new Error('Your session expired. Sign in again to continue.');
+  }
   if (!r.ok || p.data === undefined) throw new Error(p.error?.message ?? 'Request failed.');
   return p.data;
 }

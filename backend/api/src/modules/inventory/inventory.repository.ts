@@ -1,6 +1,7 @@
 import { prisma } from '@hello-shop/database';
 import type { Prisma, SerialStatus, StockMovementType } from '@hello-shop/database';
 import { AppError } from '../../common/errors/app-error.js';
+import { applyInventoryValuation } from '../accounting/inventory-valuation.service.js';
 import {
   OUTBOUND_MOVEMENTS,
   stockStatus,
@@ -72,7 +73,14 @@ async function applyInTransaction(
       createdById: userId,
     },
   });
-  return { movement, quantity: Number(resulting.quantity) };
+  const valuation = await applyInventoryValuation(
+    tx,
+    businessId,
+    input,
+    movement.id,
+    signed,
+  );
+  return { movement, valuation, quantity: Number(resulting.quantity) };
 }
 export class InventoryRepository implements InventoryRepositoryContract {
   async context(businessId: string, warehouseId: string, productId: string) {

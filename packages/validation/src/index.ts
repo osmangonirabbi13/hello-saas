@@ -31,3 +31,4 @@ export * from './rma.js';
 export * from './service-quotation.js';
 export * from './damage-expense.js';
 export * from './finance.js';
+export * from './accounting.js';

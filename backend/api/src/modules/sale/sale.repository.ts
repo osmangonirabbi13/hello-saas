@@ -1,6 +1,7 @@
 import { prisma } from '@hello-shop/database';
 import type { Prisma, SaleStatus, SaleType } from '@hello-shop/database';
 import { AppError } from '../../common/errors/app-error.js';
+import { postSaleAccounting } from '../accounting/source-accounting.service.js';
 import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 import type {
   PostingSale,
@@ -410,6 +411,7 @@ export class SaleRepository implements SaleRepositoryContract {
             metadata: { saleNumber: sale.saleNumber, invoiceNumber: sale.invoiceNumber },
           },
         });
+        await postSaleAccounting(tx, businessId, userId, sale);
         return serialize(await tx.sale.findFirstOrThrow({ where: { id, businessId }, include }));
       },
       { isolationLevel: 'Serializable' },

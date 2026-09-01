@@ -75,6 +75,7 @@ export const financialTransactionCreateSchema = z
     counterparty: optionalText(160),
     reference: optionalText(120),
     notes: optionalText(2000),
+    offsetAccountId: z.string().cuid().optional(),
   })
   .strict();
 

@@ -1,6 +1,7 @@
 import { prisma } from '@hello-shop/database';
 import type { Prisma, PurchaseStatus } from '@hello-shop/database';
 import { AppError } from '../../common/errors/app-error.js';
+import { postPurchaseAccounting } from '../accounting/source-accounting.service.js';
 import { executeIdempotent, type MutationIdentity } from '../sync/mutation-idempotency.js';
 import type {
   InventoryPoster,
@@ -286,6 +287,7 @@ export class PurchaseRepository implements PurchaseRepositoryContract {
               metadata: { purchaseNumber: purchase.purchaseNumber },
             },
           });
+          await postPurchaseAccounting(tx, businessId, userId, purchase);
           return tx.purchase.findUniqueOrThrow({ where: { id }, include });
         },
         { isolationLevel: 'Serializable' },

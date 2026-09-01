@@ -2,6 +2,7 @@ import { prisma } from '@hello-shop/database';
 import type { DamageReason, DamageStatus } from '@hello-shop/database';
 import type { DamageInput } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
+import { postDamageAccounting } from '../accounting/source-accounting.service.js';
 import { InventoryRepository } from '../inventory/inventory.repository.js';
 import { InventoryService } from '../inventory/inventory.service.js';
 const include = {
@@ -363,6 +364,7 @@ export class DamageRepository {
             entityId: id,
           },
         });
+        await postDamageAccounting(tx, b, u, d);
         return tx.damage.findUniqueOrThrow({ where: { id }, include });
       },
       { isolationLevel: 'Serializable' },

@@ -2,6 +2,7 @@ import { prisma } from '@hello-shop/database';
 import type { Prisma, ServiceStatus } from '@hello-shop/database';
 import type { ServiceCreateInput, ServiceUpdateInput } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
+import { postServiceAccounting } from '../accounting/source-accounting.service.js';
 const include = {
   business: { select: { name: true } },
   customer: true,
@@ -296,6 +297,7 @@ export class ServiceRepository {
             metadata: { from: current.status, to },
           },
         });
+        if (to === 'DELIVERED') await postServiceAccounting(tx, businessId, userId, current, new Date());
         return tx.serviceJob.findUniqueOrThrow({ where: { id }, include });
       },
       { isolationLevel: 'Serializable' },

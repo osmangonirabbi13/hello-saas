@@ -22,6 +22,7 @@ import {
   type FinancialTransaction,
   type FinancialTransfer,
 } from '@/lib/api/finance';
+import { accountingApi, type ChartAccount } from '@/lib/api/accounting';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const money = (value: string) => <CurrencyDisplay value={Number(value)} />;
@@ -624,7 +625,11 @@ export function TransactionList() {
 export function MoneyForm({ kind }: { kind: 'in' | 'out' | 'adjustment' }) {
   const { rows: accounts, error: accountError, load } = useAccounts();
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
+  useEffect(() => {
+    void accountingApi.accounts().then(setChartAccounts).catch(() => setChartAccounts([]));
+  }, []);
   const label = kind === 'in' ? 'Money In' : kind === 'out' ? 'Money Out' : 'Account Adjustment';
   const submit = (form: FormData) => {
     const value = (key: string) => {
@@ -639,6 +644,7 @@ export function MoneyForm({ kind }: { kind: 'in' | 'out' | 'adjustment' }) {
       counterparty: value('counterparty') || null,
       reference: value('reference') || null,
       notes: value('notes') || null,
+      offsetAccountId: value('offsetAccountId'),
       ...(kind === 'adjustment' ? { direction: value('direction'), reason: value('reason') } : {}),
     };
     setBusy(true);
@@ -668,17 +674,34 @@ export function MoneyForm({ kind }: { kind: 'in' | 'out' | 'adjustment' }) {
         <ErrorState message={accountError} retry={load} />
       ) : (
         <form action={submit} className="space-y-4">
+          {accounts?.some((account) => account.isActive && !account.chartAccountId) ? (
+            <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Active financial accounts without Accounting mappings are unavailable. Complete
+              Accounting Setup before transferring with them.
+            </p>
+          ) : null}
           <section className="grid gap-4 rounded-xl border bg-white p-4 sm:grid-cols-2">
             <FieldLabel label="Account">
               <select name="accountId" required className={'mt-1.5 ' + controlClass}>
                 <option value="">Select account</option>
                 {accounts
-                  ?.filter((x) => x.isActive)
+                  ?.filter((x) => x.isActive && x.chartAccountId)
                   .map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name} — {Number(x.balance).toLocaleString('en-BD')} BDT
                     </option>
                   ))}
+              </select>
+            </FieldLabel>
+            <FieldLabel
+              label={'Accounting Offset Account'}
+              helper={kind === 'in' ? 'Choose the source or meaning of incoming money; it is not automatically Revenue.' : 'Choose the economic meaning of this outgoing amount.'}
+            >
+              <select name={'offsetAccountId'} required className={'mt-1.5 ' + controlClass}>
+                <option value={''}>Select accounting classification</option>
+                {chartAccounts.filter((x) => x.isActive && x.allowManualPosting).map((x) => (
+                  <option key={x.id} value={x.id}>{x.code} — {x.name} ({x.accountType})</option>
+                ))}
               </select>
             </FieldLabel>
             {kind === 'adjustment' && (
@@ -724,6 +747,9 @@ export function MoneyForm({ kind }: { kind: 'in' | 'out' | 'adjustment' }) {
               <textarea name="notes" className={'mt-1.5 ' + textAreaClass} />
             </FieldLabel>
           </section>
+          <p className={'rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900'}>
+            This action creates linked operational and accounting history. It does not directly edit a balance.
+          </p>
           {kind === 'adjustment' && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               Adjustment directly changes the operational account balance history.
@@ -916,12 +942,18 @@ export function TransferForm() {
         <ErrorState message={accountError} retry={load} />
       ) : (
         <form action={submit} className="space-y-4">
+          {accounts?.some((account) => account.isActive && !account.chartAccountId) ? (
+            <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Active financial accounts without Accounting mappings are unavailable. Complete
+              Accounting Setup before transferring with them.
+            </p>
+          ) : null}
           <section className="grid gap-4 rounded-xl border bg-white p-4 sm:grid-cols-2">
             <FieldLabel label="From account">
               <select name="sourceAccountId" required className={'mt-1.5 ' + controlClass}>
                 <option value="">Select source</option>
                 {accounts
-                  ?.filter((x) => x.isActive)
+                  ?.filter((x) => x.isActive && x.chartAccountId)
                   .map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name} — {x.balance} BDT
@@ -933,7 +965,7 @@ export function TransferForm() {
               <select name="destinationAccountId" required className={'mt-1.5 ' + controlClass}>
                 <option value="">Select destination</option>
                 {accounts
-                  ?.filter((x) => x.isActive)
+                  ?.filter((x) => x.isActive && x.chartAccountId)
                   .map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
@@ -965,6 +997,10 @@ export function TransferForm() {
               <textarea name="notes" className={'mt-1.5 ' + textAreaClass} />
             </FieldLabel>
           </section>
+          <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+            Accounting debits the destination asset account and credits the source asset account.
+            Internal transfers create no Revenue or Expense.
+          </p>
           {error && (
             <p role="alert" className="text-sm text-rose-700">
               {error}
