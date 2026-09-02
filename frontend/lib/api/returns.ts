@@ -1,4 +1,5 @@
 'use client';
+import { apiError, type ApiErrorBody } from './api-error';
 export type ReturnKind = 'purchase' | 'sale';
 const base = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -14,9 +15,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
-  const payload = (await response.json()) as { data?: T; error?: { message?: string } };
+  const payload = (await response.json()) as { data?: T; error?: ApiErrorBody };
   if (!response.ok || payload.data === undefined)
-    throw new Error(payload.error?.message ?? 'Return request failed.');
+    throw apiError(payload.error, 'Return request failed.');
   return payload.data;
 }
 export const listReturns = <T>(kind: ReturnKind) => call<T[]>(`/${kind}-returns`);

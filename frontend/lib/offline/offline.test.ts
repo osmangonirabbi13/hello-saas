@@ -151,6 +151,11 @@ describe('offline policy and deterministic connectivity', () => {
     expect(offlineCapability('sales.post')).toBe('ONLINE_REQUIRED');
     expect(offlineCapability('pos.checkout')).toBe('ONLINE_REQUIRED');
     expect(offlineCapability('inventory.adjust')).toBe('ONLINE_REQUIRED');
+    expect(offlineCapability('team.manage')).toBe('ONLINE_REQUIRED');
+    expect(offlineCapability('roles.manage')).toBe('ONLINE_REQUIRED');
+    expect(offlineCapability('approvals.decide')).toBe('ONLINE_REQUIRED');
+    expect(offlineCapability('approval-policies.manage')).toBe('ONLINE_REQUIRED');
+    expect(offlineCapability('audit.read')).toBe('ONLINE_REQUIRED');
   });
   it('models offline, reconnected, and API-unreachable states', () => {
     expect(connectionTransition(false)).toBe('OFFLINE');
@@ -168,20 +173,24 @@ describe('actual offline workflow composition', () => {
       localEntityId: saved.entity.localId,
       status: 'PENDING',
     });
-    expect((await workflow.effectiveList(scopeA, 'PRODUCT'))[0]?.payload.name).toBe('Offline mouse');
+    expect((await workflow.effectiveList(scopeA, 'PRODUCT'))[0]?.payload.name).toBe(
+      'Offline mouse',
+    );
     await db.localEntities.put({
       ...saved.entity,
       serverId: 'product-server',
       payload: { name: 'Authoritative mouse', id: 'product-server' },
     });
-    const effective = await workflow.effectiveList(scopeA, 'PRODUCT', [{
-      ...scopeA,
-      localId: 'cache-product-server',
-      serverId: 'product-server',
-      entityType: 'PRODUCT',
-      payload: { name: 'Server duplicate' },
-      updatedAt: new Date().toISOString(),
-    }]);
+    const effective = await workflow.effectiveList(scopeA, 'PRODUCT', [
+      {
+        ...scopeA,
+        localId: 'cache-product-server',
+        serverId: 'product-server',
+        entityType: 'PRODUCT',
+        payload: { name: 'Server duplicate' },
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
     expect(effective).toHaveLength(1);
     expect(effective[0]?.payload.name).toBe('Authoritative mouse');
   });

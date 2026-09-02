@@ -1,4 +1,5 @@
 'use client';
+import { apiError, type ApiErrorBody } from './api-error';
 const base = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 async function call<T>(path: string, init?: RequestInit) {
   if (!navigator.onLine) throw new Error('Internet connection required for accounting operations.');
@@ -12,13 +13,12 @@ async function call<T>(path: string, init?: RequestInit) {
       ...init?.headers,
     },
   });
-  const payload = (await response.json()) as { data?: T; error?: { message?: string } };
+  const payload = (await response.json()) as { data?: T; error?: ApiErrorBody };
   if (response.status === 401) {
     sessionStorage.removeItem('hello_shop_access');
     window.location.assign('/login?reason=session-expired');
   }
-  if (!response.ok || payload.data === undefined)
-    throw new Error(payload.error?.message ?? 'Request failed.');
+  if (!response.ok || payload.data === undefined) throw apiError(payload.error, 'Request failed.');
   return payload.data;
 }
 export type ChartAccount = {

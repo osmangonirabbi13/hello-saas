@@ -104,7 +104,7 @@ export class AccountingEngine {
     });
     await tx.journalEntry.update({
       where: { id: original.id },
-      data: { status: 'REVERSED', reversedById: reversal.id },
+      data: { status: 'REVERSED', reversedById: reversal.id, version: { increment: 1 } },
     });
     return tx.journalEntry.findUniqueOrThrow({
       where: { id: reversal.id },
@@ -147,7 +147,12 @@ export class AccountingEngine {
       );
     const posted = await tx.journalEntry.update({
       where: { id: journal.id },
-      data: { status: 'POSTED', postedById: actorUserId, postedAt: new Date() },
+      data: {
+        status: 'POSTED',
+        postedById: actorUserId,
+        postedAt: new Date(),
+        version: { increment: 1 },
+      },
       include: { lines: true },
     });
     await tx.auditLog.create({

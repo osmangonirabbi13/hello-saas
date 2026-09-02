@@ -14,6 +14,8 @@ import {
   textAreaClass,
 } from '@/components/ui/primitives';
 import { expenseApi, type Expense } from '@/lib/api/damage-expense';
+import { ApprovalRequiredNotice } from '@/components/team-security/approval-required-notice';
+import { ApprovalRequiredError } from '@/lib/api/api-error';
 export function ExpenseList() {
   const [d, setD] = useState<{ rows: Expense[]; postedTotal: string } | null>(null),
     [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
@@ -246,12 +248,16 @@ export function ExpenseForm({ id }: { id?: string }) {
 }
 export function ExpenseDetail({ id }: { id: string }) {
   const [x, setX] = useState<Expense | null>(null);
+  const [approval, setApproval] = useState<ApprovalRequiredError | null>(null);
+  const [error, setError] = useState('');
   useEffect(() => {
     void expenseApi.find(id).then(setX);
   }, [id]);
   if (!x) return <TableSkeleton />;
   return (
     <>
+      {approval ? <ApprovalRequiredNotice error={approval} /> : null}
+      {error ? <p role="alert">{error}</p> : null}
       <PageHeader
         title={x.expenseNumber}
         description={`${x.category.name} · ৳${Number(x.amount).toLocaleString('en-BD')}`}
@@ -265,7 +271,22 @@ export function ExpenseDetail({ id }: { id: string }) {
                 <Link href={`/expenses/${id}/edit`}>
                   <Button variant="secondary">Edit</Button>
                 </Link>
-                <Button onClick={() => void expenseApi.post(id).then(setX)}>Post Expense</Button>
+                <Button
+                  onClick={() =>
+                    void expenseApi
+                      .post(id)
+                      .then(setX)
+                      .catch((reason: unknown) => {
+                        if (reason instanceof ApprovalRequiredError) setApproval(reason);
+                        else
+                          setError(
+                            reason instanceof Error ? reason.message : 'Unable to post expense.',
+                          );
+                      })
+                  }
+                >
+                  Post Expense
+                </Button>
               </>
             )}
           </>

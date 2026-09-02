@@ -32,6 +32,7 @@ import {
   createFinancialTransferRouter,
 } from './modules/finance/finance.routes.js';
 import { createAccountingRouter } from './modules/accounting/accounting.routes.js';
+import { createTeamSecurityRouters } from './modules/team-security/team-security.routes.js';
 
 export function createApiRouter(dependencies: {
   authService: AuthService;
@@ -123,5 +124,12 @@ export function createApiRouter(dependencies: {
     '/accounting',
     createAccountingRouter(dependencies.authService, dependencies.authRepository),
   );
+  const security = createTeamSecurityRouters(dependencies.authService, dependencies.authRepository);
+  router.use('/team', security.team);
+  router.use('/roles', security.roles);
+  router.use('/permissions', security.permissions);
+  router.use('/approvals', security.approvals);
+  router.use('/approval-policies', security.policies);
+  router.use('/audit-logs', security.audits);
   return router;
 }

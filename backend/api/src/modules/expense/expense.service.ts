@@ -5,8 +5,11 @@ import type {
 } from '@hello-shop/validation';
 import { AppError } from '../../common/errors/app-error.js';
 import { ExpenseRepository } from './expense.repository.js';
+import { Prisma } from '@hello-shop/database';
+import { ApprovalRepository } from '../team-security/approval.repository.js';
+import { approvalRequiredError } from '../team-security/approval-error.js';
 export class ExpenseService {
-  constructor(private r = new ExpenseRepository()) {}
+  constructor(private r = new ExpenseRepository(), private approvals = new ApprovalRepository()) {}
   categories(b: string) {
     return this.r.categories(b);
   }
@@ -30,7 +33,12 @@ export class ExpenseService {
   update(b: string, id: string, u: string, i: ExpenseInput) {
     return this.r.update(b, id, u, i);
   }
-  post(b: string, id: string, u: string) {
+  async post(b: string, id: string, u: string) {
+    const source = await this.find(b, id);
+    const payload = { amount: source.amount.toString(), categoryId: source.categoryId, expenseDate: source.expenseDate.toISOString() };
+    const gate = await this.approvals.evaluateAndRequest(b, u, { actionType: 'EXPENSE_POST', sourceType: 'Expense', sourceId: id, sourceVersion: source.version, value: new Prisma.Decimal(source.amount), reason: 'Expense posting meets the configured approval policy.', payload });
+    if (gate.approvalRequired) throw approvalRequiredError(gate.request);
+    if ('approvedRequest' in gate) return this.approvals.execute(b, gate.approvedRequest.id, source.version, payload, u, () => this.r.post(b, id, u));
     return this.r.post(b, id, u);
   }
   remove(b: string, id: string, u: string) {

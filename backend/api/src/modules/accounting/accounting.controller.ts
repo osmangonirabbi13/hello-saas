@@ -189,7 +189,7 @@ export const accountingController = (s = new AccountingService()) => ({
   }) as RequestHandler,
   closePeriod: ((q, r, n) => {
     void s
-      .closePeriod(q.tenant!.businessId, String(q.params.id))
+      .closePeriod(q.tenant!.businessId, String(q.params.id), q.auth!.id)
       .then((x) => success(r, x))
       .catch(n);
   }) as RequestHandler,

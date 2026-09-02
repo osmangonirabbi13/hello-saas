@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { ApprovalRequiredNotice } from '@/components/team-security/approval-required-notice';
+import { ApprovalRequiredError } from '@/lib/api/api-error';
 import {
   accountingApi,
   type ChartAccount,
@@ -16,6 +18,7 @@ export function SetupWorkspace() {
     [financial, setFinancial] = useState<FinancialAccount[]>([]),
     [categories, setCategories] = useState<ExpenseCategory[]>([]),
     [periods, setPeriods] = useState<FiscalPeriod[]>([]),
+    [approval, setApproval] = useState<ApprovalRequiredError | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const load = async () => {
@@ -92,6 +95,7 @@ export function SetupWorkspace() {
   return (
     <div className="space-y-4">
       <Header />
+      {approval ? <ApprovalRequiredNotice error={approval} /> : null}
       <div aria-live="polite">
         {error ? (
           <div
@@ -142,7 +146,39 @@ export function SetupWorkspace() {
                 <strong>{p.name}</strong> · {new Date(p.startDate).toLocaleDateString()}–
                 {new Date(p.endDate).toLocaleDateString()}
               </span>
-              <span className="font-medium">{p.status}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{p.status}</span>
+                {p.status === 'OPEN' ? (
+                  <button
+                    disabled={busy}
+                    className="min-h-11 rounded-lg border border-rose-300 px-3 font-semibold text-rose-800 disabled:opacity-50"
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `Close fiscal period ${p.name}? Draft journals will block closure.`,
+                        )
+                      )
+                        return;
+                      setBusy(true);
+                      void accountingApi
+                        .closePeriod(p.id)
+                        .then(load)
+                        .catch((reason: unknown) => {
+                          if (reason instanceof ApprovalRequiredError) setApproval(reason);
+                          else
+                            setError(
+                              reason instanceof Error
+                                ? reason.message
+                                : 'Unable to close fiscal period.',
+                            );
+                        })
+                        .finally(() => setBusy(false));
+                    }}
+                  >
+                    Close period
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

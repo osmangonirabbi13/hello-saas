@@ -133,8 +133,19 @@ export const BUSINESS_PERMISSIONS = [
   'cheque.read',
   'investment.read',
   'hr.team.read',
+  'team.invite',
+  'team.update',
+  'team.suspend',
+  'team.reactivate',
+  'team.revoke_sessions',
   'hr.sales-rep.read',
   'role.read',
+  'role.manage',
+  'permission.read',
+  'approval.read',
+  'approval.review',
+  'approval.policy.manage',
+  'audit.read',
   'report.business',
   'report.sales',
   'report.customer.top',
@@ -156,6 +167,38 @@ export const BUSINESS_PERMISSIONS = [
 ] as const;
 
 export type BusinessPermission = (typeof BUSINESS_PERMISSIONS)[number];
+export type PermissionRisk = 'STANDARD' | 'SENSITIVE' | 'CRITICAL';
+const sensitive = new Set<string>([
+  'team.suspend',
+  'team.revoke_sessions',
+  'role.manage',
+  'approval.review',
+  'approval.policy.manage',
+  'journal.reverse',
+  'fiscal_period.close',
+  'financial.adjust',
+]);
+const critical = new Set<string>([
+  'role.manage',
+  'team.suspend',
+  'journal.reverse',
+  'fiscal_period.close',
+]);
+export const PERMISSION_REGISTRY = BUSINESS_PERMISSIONS.map((key) => {
+  const [module = 'general'] = key.split('.');
+  const label = key
+    .split('.')
+    .map((part) => part.replace(/_/g, ' '))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' � ');
+  return {
+    key,
+    module,
+    label,
+    description: `Allows ${label.toLowerCase()} operations within the active business.`,
+    risk: critical.has(key) ? 'CRITICAL' : sensitive.has(key) ? 'SENSITIVE' : 'STANDARD',
+  };
+});
 export const DEFAULT_ROLE_NAMES = [
   'OWNER',
   'ADMIN',
@@ -194,6 +237,12 @@ export const ROLE_PERMISSION_MAP: Record<DefaultRoleName, readonly BusinessPermi
         'admin.access',
         'business.setting.manage',
         'role.read',
+        'role.manage',
+        'team.suspend',
+        'team.revoke_sessions',
+        'approval.policy.manage',
+        'approval.review',
+        'audit.read',
         'marketplace.read',
         'financial.adjust',
         'financial_account.disable',

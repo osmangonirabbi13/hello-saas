@@ -14,7 +14,7 @@ export type MembershipRecord = {
   userDisplayName?: string;
   roleName?: string;
   businessActive: boolean;
-  status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'REMOVED';
   permissions: string[];
 };
 export type SessionRecord = {

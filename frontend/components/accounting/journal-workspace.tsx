@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { ApprovalRequiredNotice } from '@/components/team-security/approval-required-notice';
+import { ApprovalRequiredError } from '@/lib/api/api-error';
 import {
   accountingApi,
   type ChartAccount,
@@ -487,6 +489,7 @@ export function JournalDetail({ id }: { id: string }) {
     [accounts, setAccounts] = useState<ChartAccount[]>([]),
     [periods, setPeriods] = useState<FiscalPeriod[]>([]),
     [editing, setEditing] = useState(false),
+    [approval, setApproval] = useState<ApprovalRequiredError | null>(null),
     [error, setError] = useState('');
   const load = () =>
     accountingApi
@@ -504,6 +507,7 @@ export function JournalDetail({ id }: { id: string }) {
     credit = row.lines.reduce((s, l) => s + money(l.credit), 0);
   return (
     <div className="space-y-4">
+      {approval ? <ApprovalRequiredNotice error={approval} /> : null}
       {editing && row.status === 'DRAFT' ? (
         <JournalEditor
           accounts={accounts}
@@ -534,7 +538,16 @@ export function JournalDetail({ id }: { id: string }) {
             </button>
             <button
               onClick={() => {
-                void accountingApi.postJournal(row.id).then(load);
+                void accountingApi
+                  .postJournal(row.id)
+                  .then(load)
+                  .catch((reason: unknown) => {
+                    if (reason instanceof ApprovalRequiredError) setApproval(reason);
+                    else
+                      setError(
+                        reason instanceof Error ? reason.message : 'Unable to post journal.',
+                      );
+                  });
               }}
               className="min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white"
             >
@@ -547,7 +560,16 @@ export function JournalDetail({ id }: { id: string }) {
               if (
                 confirm('Create an exact reversing journal? Posted history will remain immutable.')
               ) {
-                void accountingApi.reverseJournal(row.id).then(load);
+                void accountingApi
+                  .reverseJournal(row.id)
+                  .then(load)
+                  .catch((reason: unknown) => {
+                    if (reason instanceof ApprovalRequiredError) setApproval(reason);
+                    else
+                      setError(
+                        reason instanceof Error ? reason.message : 'Unable to reverse journal.',
+                      );
+                  });
               }
             }}
             className="min-h-11 rounded-lg border border-rose-300 px-4 text-sm font-semibold text-rose-800"

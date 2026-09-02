@@ -185,14 +185,17 @@ export const navigation: NavigationItem[] = [
   },
   {
     id: 'hr',
-    label: 'HR',
+    label: 'Team & Security',
     icon: BriefcaseBusiness,
     children: [
-      child('team', 'Team', '/hr/team', 'hr.team.read'),
+      child('team', 'Team', '/settings/team', 'hr.team.read'),
       child('sales-representatives', 'SR List', '/hr/sales-representatives', 'hr.sales-rep.read'),
-      child('roles', 'Role', '/hr/roles', 'role.read'),
+      child('roles', 'Roles', '/settings/roles', 'role.read'),
+      child('approval-policies', 'Approval Policies', '/settings/approval-policies', 'approval.read'),
+      child('audit-log', 'Audit Log', '/settings/audit-log', 'audit.read'),
     ],
   },
+  { id: 'approvals', label: 'Approvals', href: '/approvals', permission: 'approval.read', icon: ShieldCheck },
   {
     id: 'report',
     label: 'Report',

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ScanBarcode, Printer } from 'lucide-react';
 import { Button, PageHeader, StatusBadge } from '@/components/ui/primitives';
 import { SerialEntry } from '@/components/scanner/serial-entry';
+import { ApprovalRequiredNotice } from '@/components/team-security/approval-required-notice';
+import { ApprovalRequiredError } from '@/lib/api/api-error';
 import {
   createReturn,
   getReturn,
@@ -289,6 +291,7 @@ export function ReturnForm({ kind, id }: { kind: ReturnKind; id?: string }) {
 export function ReturnDetail({ kind, id }: { kind: ReturnKind; id: string }) {
   const [item, setItem] = useState<Item | null>(null);
   const [error, setError] = useState('');
+  const [approval, setApproval] = useState<ApprovalRequiredError | null>(null);
   useEffect(() => {
     void getReturn<Item>(kind, id)
       .then(setItem)
@@ -299,9 +302,13 @@ export function ReturnDetail({ kind, id }: { kind: ReturnKind; id: string }) {
   const post = () =>
     void postReturn<Item>(kind, id)
       .then(setItem)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to post return.'));
+      .catch((e: unknown) => {
+        if (e instanceof ApprovalRequiredError) setApproval(e);
+        else setError(e instanceof Error ? e.message : 'Unable to post return.');
+      });
   return (
     <div className="return-print space-y-5">
+      {approval ? <ApprovalRequiredNotice error={approval} /> : null}
       <PageHeader
         title={item.returnNumber}
         description={label(kind)}
@@ -381,7 +388,7 @@ export function ReturnDetail({ kind, id }: { kind: ReturnKind; id: string }) {
         </p>
         {kind === 'sale' && (
           <p className="mt-2 text-right text-xs text-slate-500">
-              Refund settlement will be handled separately.
+            Refund settlement will be handled separately.
           </p>
         )}
         {item.status === 'DRAFT' && (

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { purchaseReturnSchema, saleReturnSchema } from '@hello-shop/validation';
 import { ReturnService } from '../modules/return/return.service.js';
+import type { ApprovalRepository } from '../modules/team-security/approval.repository.js';
 import type { ReturnRepository } from '../modules/return/return.repository.js';
 const repository = readFileSync(
   new URL('../modules/return/return.repository.ts', import.meta.url),
@@ -79,10 +80,21 @@ describe('ReturnService lifecycle delegation', () => {
   it('derives tenant and actor for Purchase Return draft, post, and delete', async () => {
     const mock = {
       createPurchase: vi.fn().mockResolvedValue({ status: 'DRAFT' }),
+      findPurchase: vi
+        .fn()
+        .mockResolvedValue({
+          id: 'return-a',
+          purchaseId: 'purchase-a',
+          grandTotal: '100.00',
+          version: 1,
+        }),
       postPurchase: vi.fn().mockResolvedValue({ status: 'POSTED' }),
       deletePurchase: vi.fn().mockResolvedValue({ deleted: true }),
     };
-    const returnService = new ReturnService(mock as unknown as ReturnRepository);
+    const approvals = {
+      evaluateAndRequest: vi.fn().mockResolvedValue({ approvalRequired: false }),
+    } as unknown as ApprovalRepository;
+    const returnService = new ReturnService(mock as unknown as ReturnRepository, approvals);
     const input = {
       sourceId: id,
       returnDate: new Date('2026-09-03'),
@@ -106,9 +118,15 @@ describe('ReturnService lifecycle delegation', () => {
     const mock = {
       createSale: vi.fn().mockResolvedValue({ customerId: null }),
       saleReturnable: vi.fn().mockResolvedValue({ type: 'VAT' }),
+      findSale: vi
+        .fn()
+        .mockResolvedValue({ id: 'return-a', saleId: 'sale-a', grandTotal: '100.00', version: 1 }),
       postSale: vi.fn().mockResolvedValue({ type: 'POS', status: 'POSTED' }),
     };
-    const returnService = new ReturnService(mock as unknown as ReturnRepository);
+    const approvals = {
+      evaluateAndRequest: vi.fn().mockResolvedValue({ approvalRequired: false }),
+    } as unknown as ApprovalRepository;
+    const returnService = new ReturnService(mock as unknown as ReturnRepository, approvals);
     const input = {
       sourceId: id,
       returnDate: new Date('2026-09-03'),

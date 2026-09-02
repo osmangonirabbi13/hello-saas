@@ -328,6 +328,7 @@ export class AccountingRepository {
           date: input.date,
           memo: input.memo,
           fiscalPeriodId: period.id,
+          version: { increment: 1 },
           lines: {
             create: input.lines.map((line) => ({
               businessId,
@@ -1027,6 +1028,9 @@ export class AccountingRepository {
   listPeriods(businessId: string) {
     return prisma.fiscalPeriod.findMany({ where: { businessId }, orderBy: { startDate: 'desc' } });
   }
+  findPeriod(businessId: string, id: string) {
+    return prisma.fiscalPeriod.findFirst({ where: { businessId, id } });
+  }
   createPeriod(businessId: string, input: FiscalPeriodCreateInput) {
     return prisma.$transaction(async (tx) => {
       const overlap = await tx.fiscalPeriod.findFirst({
@@ -1051,7 +1055,7 @@ export class AccountingRepository {
     }
     const changed = await prisma.fiscalPeriod.updateMany({
       where: { id, businessId },
-      data: { status },
+      data: { status, version: { increment: 1 } },
     });
     if (!changed.count)
       throw new AppError(404, 'FISCAL_PERIOD_NOT_FOUND', 'Fiscal period was not found.');

@@ -14,6 +14,8 @@ import {
   textAreaClass,
 } from '@/components/ui/primitives';
 import { damageApi, damageOptions, type Damage } from '@/lib/api/damage-expense';
+import { ApprovalRequiredNotice } from '@/components/team-security/approval-required-notice';
+import { ApprovalRequiredError } from '@/lib/api/api-error';
 import { parseSerials } from '@/lib/transaction-scanner';
 const label = (x: string) =>
   x
@@ -317,6 +319,7 @@ export function DamageForm({ id }: { id?: string }) {
 }
 export function DamageDetail({ id }: { id: string }) {
   const [x, setX] = useState<Damage | null>(null),
+    [approval, setApproval] = useState<ApprovalRequiredError | null>(null),
     [msg, setMsg] = useState('');
   const load = () =>
     void damageApi
@@ -327,6 +330,7 @@ export function DamageDetail({ id }: { id: string }) {
   if (!x) return <>{msg ? <p role="alert">{msg}</p> : <TableSkeleton />}</>;
   return (
     <>
+      {approval ? <ApprovalRequiredNotice error={approval} /> : null}
       <PageHeader
         title={x.damageNumber}
         description={`${label(x.reason)} · ${x.warehouse.name}`}
@@ -345,9 +349,10 @@ export function DamageDetail({ id }: { id: string }) {
                     void damageApi
                       .post(id)
                       .then(setX)
-                      .catch((e) =>
-                        setMsg(e instanceof Error ? e.message : 'Unable to post damage.'),
-                      )
+                      .catch((e: unknown) => {
+                        if (e instanceof ApprovalRequiredError) setApproval(e);
+                        else setMsg(e instanceof Error ? e.message : 'Unable to post damage.');
+                      })
                   }
                 >
                   Post Damage

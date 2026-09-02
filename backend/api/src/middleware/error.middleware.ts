@@ -21,6 +21,7 @@ export const errorMiddleware: ErrorRequestHandler = (error: unknown, request, re
       code: normalized.code,
       message: normalized.message,
       ...(normalized.fields ? { fields: normalized.fields } : {}),
+      ...(normalized.details ? { details: normalized.details } : {}),
     },
     meta: { requestId: request.id },
   });

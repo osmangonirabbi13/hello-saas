@@ -79,5 +79,23 @@ export const checkWarranty = (serial: string) =>
   }>(`/rmas/warranty/lookup?serial=${encodeURIComponent(serial)}`);
 export const getSerialHistory = (id: string) =>
   call<SerialDetail>(`/rmas/serials/${encodeURIComponent(id)}/history`);
-export type SerialDetail={id:string;serialNumber:string;status:string;warrantyStart:string|null;warrantyEnd:string|null;updatedAt:string;product:{name:string;sku:string};warehouse:{name:string};history:Array<{id:string;eventType:string;referenceType:string;referenceId:string;occurredAt:string}>;rmas:Array<{id:string;rmaNumber:string;status:string;receivedAt:string}>};
-export const listWarrantySerials=()=>call<{rows:SerialDetail[];total:number}>('/serials?limit=100');
+export type SerialDetail = {
+  id: string;
+  serialNumber: string;
+  status: string;
+  warrantyStart: string | null;
+  warrantyEnd: string | null;
+  updatedAt: string;
+  product: { name: string; sku: string };
+  warehouse: { name: string };
+  history: Array<{
+    id: string;
+    eventType: string;
+    referenceType: string;
+    referenceId: string;
+    occurredAt: string;
+  }>;
+  rmas: Array<{ id: string; rmaNumber: string; status: string; receivedAt: string }>;
+};
+export const listWarrantySerials = () =>
+  call<{ rows: SerialDetail[]; total: number }>('/serials?limit=100');

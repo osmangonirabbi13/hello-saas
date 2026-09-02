@@ -137,7 +137,7 @@ export class PrismaAuthRepository implements AuthRepository {
   private mapMembership(membership: {
     id: string;
     businessId: string;
-    status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
+    status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'REMOVED';
     business: { name: string; slug: string; isActive: boolean };
     user: { displayName: string };
     role: { name: string; permissions: { permission: { key: string } }[] };

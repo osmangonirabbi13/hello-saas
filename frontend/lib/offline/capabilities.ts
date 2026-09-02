@@ -12,7 +12,12 @@ export type Capability =
   | 'pos.checkout'
   | 'inventory.adjust'
   | 'serial.mutate'
-  | 'finance.mutate';
+  | 'finance.mutate'
+  | 'team.manage'
+  | 'roles.manage'
+  | 'approvals.decide'
+  | 'approval-policies.manage'
+  | 'audit.read';
 const policy: Record<Capability, 'OFFLINE_SAFE' | 'ONLINE_REQUIRED'> = {
   'products.create': 'OFFLINE_SAFE',
   'products.update': 'OFFLINE_SAFE',
@@ -28,5 +33,10 @@ const policy: Record<Capability, 'OFFLINE_SAFE' | 'ONLINE_REQUIRED'> = {
   'inventory.adjust': 'ONLINE_REQUIRED',
   'serial.mutate': 'ONLINE_REQUIRED',
   'finance.mutate': 'ONLINE_REQUIRED',
+  'team.manage': 'ONLINE_REQUIRED',
+  'roles.manage': 'ONLINE_REQUIRED',
+  'approvals.decide': 'ONLINE_REQUIRED',
+  'approval-policies.manage': 'ONLINE_REQUIRED',
+  'audit.read': 'ONLINE_REQUIRED',
 };
 export const offlineCapability = (capability: Capability) => policy[capability];

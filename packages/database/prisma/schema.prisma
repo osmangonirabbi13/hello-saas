@@ -10,7 +10,63 @@ datasource db {
 enum MembershipStatus {
   ACTIVE
   SUSPENDED
+  INACTIVE
   REMOVED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  OTHER
+}
+
+enum TeamInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum ApprovalActionType {
+  SALE_HIGH_DISCOUNT
+  PURCHASE_POST
+  SALE_RETURN_POST
+  PURCHASE_RETURN_POST
+  DAMAGE_POST
+  EXPENSE_POST
+  FINANCIAL_MONEY_OUT
+  FINANCIAL_TRANSFER
+  FINANCIAL_ADJUSTMENT
+  MANUAL_JOURNAL_POST
+  JOURNAL_REVERSE
+  FISCAL_PERIOD_CLOSE
+  TEAM_ROLE_CHANGE
+  TEAM_SUSPEND
+}
+
+enum ApprovalThresholdType {
+  NONE
+  ALWAYS
+  AMOUNT
+  PERCENTAGE
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  EXECUTING
+  REJECTED
+  CANCELLED
+  EXPIRED
+  EXECUTED
+  STALE
+}
+
+enum ApprovalDecisionType {
+  APPROVED
+  REJECTED
 }
 
 enum WarrantyUnit {
@@ -390,6 +446,12 @@ model User {
   chartAccountsCreated   ChartAccount[]         @relation("ChartAccountCreator")
   journalsCreated        JournalEntry[]         @relation("JournalCreator")
   journalsPosted         JournalEntry[]         @relation("JournalPoster")
+  teamInvitationsSent    TeamInvitation[]       @relation("TeamInvitationSender")
+  rolesCreated           Role[]                 @relation("RoleCreator")
+  approvalPoliciesMade   ApprovalPolicy[]       @relation("ApprovalPolicyCreator")
+  approvalsRequested     ApprovalRequest[]      @relation("ApprovalRequester")
+  approvalsReviewed      ApprovalRequest[]      @relation("ApprovalReviewer")
+  approvalDecisions      ApprovalDecision[]     @relation("ApprovalDecisionReviewer")
 }
 
 model Business {
@@ -448,6 +510,10 @@ model Business {
   creditApplications     PartyCreditApplication[]
   inventoryCostStates    InventoryCostState[]
   inventoryCostMovements InventoryCostMovement[]
+  teamInvitations        TeamInvitation[]
+  approvalPolicies       ApprovalPolicy[]
+  approvalRequests       ApprovalRequest[]
+  approvalDecisions      ApprovalDecision[]
 
   @@index([createdAt])
 }
@@ -1386,6 +1452,13 @@ model BusinessMembership {
   userId     String
   roleId     String
   status     MembershipStatus @default(ACTIVE)
+  employeeCode   String?
+  jobTitle       String?
+  phone          String?
+  employmentType EmploymentType?
+  joinedAt       DateTime?
+  notes          String?
+  version        Int              @default(1)
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   business   Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
@@ -1404,14 +1477,20 @@ model Role {
   name        String
   description String?
   isSystem    Boolean              @default(false)
+  isActive    Boolean              @default(true)
+  createdById String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   business    Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
   memberships BusinessMembership[]
   permissions RolePermission[]
+  createdBy   User?                @relation("RoleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invitations TeamInvitation[]
+  approvalPolicies ApprovalPolicy[]
 
   @@unique([businessId, name])
   @@index([businessId, createdAt])
+  @@index([businessId, isActive, name])
 }
 
 model Permission {
@@ -1467,6 +1546,8 @@ model AuditLog {
   entityId    String?
   requestId   String?
   ipAddress   String?
+  userAgent   String?
+  summary     String?
   metadata    Json?
   createdAt   DateTime @default(now())
   business    Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
@@ -1475,6 +1556,106 @@ model AuditLog {
   @@index([businessId, createdAt])
   @@index([businessId, entityType, entityId])
   @@index([actorUserId, createdAt])
+  @@index([businessId, action, createdAt])
+}
+
+model TeamInvitation {
+  id           String               @id @default(cuid())
+  businessId   String
+  email        String
+  roleId       String
+  invitedById  String
+  tokenHash    String               @unique
+  status       TeamInvitationStatus @default(PENDING)
+  jobTitle     String?
+  employeeCode String?
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  business     Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  role         Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy    User                 @relation("TeamInvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([businessId, status, createdAt])
+  @@index([businessId, email, status])
+  @@index([expiresAt, status])
+}
+
+model ApprovalPolicy {
+  id                String                @id @default(cuid())
+  businessId        String
+  actionType        ApprovalActionType
+  enabled           Boolean               @default(false)
+  thresholdType     ApprovalThresholdType @default(NONE)
+  thresholdValue    Decimal?              @db.Decimal(18, 4)
+  requiredApprovals Int                   @default(1)
+  approverRoleId    String?
+  allowSelfApproval Boolean               @default(false)
+  expiresAfterHours Int?
+  createdById       String
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  business          Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  approverRole      Role?                 @relation(fields: [approverRoleId], references: [id], onDelete: Restrict)
+  createdBy         User                  @relation("ApprovalPolicyCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  requests          ApprovalRequest[]
+
+  @@unique([businessId, actionType])
+  @@index([businessId, enabled, actionType])
+}
+
+model ApprovalRequest {
+  id                String                @id @default(cuid())
+  businessId        String
+  policyId          String
+  approvalNumber    String
+  actionType        ApprovalActionType
+  status            ApprovalRequestStatus @default(PENDING)
+  requestedById     String
+  reviewedById      String?
+  reason            String
+  requesterNote     String?
+  reviewerNote      String?
+  sourceType        String
+  sourceId          String
+  sourceVersion     Int
+  payloadSnapshot   Json
+  payloadHash       String
+  requestedAt       DateTime              @default(now())
+  reviewedAt        DateTime?
+  expiresAt         DateTime?
+  executedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  business          Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  policy            ApprovalPolicy        @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  requestedBy       User                  @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy        User?                 @relation("ApprovalReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  decisions         ApprovalDecision[]
+
+  @@unique([businessId, approvalNumber])
+  @@index([businessId, status, requestedAt])
+  @@index([businessId, actionType, status])
+  @@index([businessId, sourceType, sourceId, status])
+  @@index([businessId, requestedById, requestedAt])
+}
+
+model ApprovalDecision {
+  id                String               @id @default(cuid())
+  businessId        String
+  approvalRequestId String
+  reviewerId        String
+  decision          ApprovalDecisionType
+  note              String?
+  createdAt         DateTime             @default(now())
+  business          Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  approvalRequest   ApprovalRequest      @relation(fields: [approvalRequestId], references: [id], onDelete: Restrict)
+  reviewer          User                 @relation("ApprovalDecisionReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([approvalRequestId, reviewerId])
+  @@index([businessId, createdAt])
 }
 
 model Damage {
@@ -1733,6 +1914,7 @@ model FiscalPeriod {
   startDate  DateTime
   endDate    DateTime
   status     FiscalPeriodStatus @default(OPEN)
+  version    Int                @default(1)
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
   business   Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
@@ -1749,6 +1931,7 @@ model JournalEntry {
   date                  DateTime
   memo                  String
   status                JournalStatus          @default(DRAFT)
+  version               Int                    @default(1)
   sourceType            String
   sourceId              String
   sourceEvent           String

@@ -1,4 +1,5 @@
 'use client';
+import { apiError, type ApiErrorBody } from './api-error';
 const base = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 async function call<T>(path: string, init?: RequestInit) {
   if (!navigator.onLine)
@@ -17,14 +18,14 @@ async function call<T>(path: string, init?: RequestInit) {
       ...init?.headers,
     },
   });
-  const p = (await r.json()) as { data?: T; error?: { message?: string } };
+  const p = (await r.json()) as { data?: T; error?: ApiErrorBody };
   if (r.status === 401) {
     sessionStorage.removeItem('hello_shop_access');
     sessionStorage.removeItem('hello_shop_permissions');
     window.location.assign('/login?reason=session-expired');
     throw new Error('Your session expired. Sign in again to continue.');
   }
-  if (!r.ok || p.data === undefined) throw new Error(p.error?.message ?? 'Request failed.');
+  if (!r.ok || p.data === undefined) throw apiError(p.error, 'Request failed.');
   return p.data;
 }
 export type Damage = {
